@@ -1,0 +1,116 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qwen-mm-plugins"
+dynamic = ["version"]
+description = "Qwen-MM-Plugins: an Agent Skills + MCP tools platform for vision-language models — read/visualize any file + vision-language APIs, hierarchical graph memory for long-video QA, media generation/video-edit, and Blender/FreeCAD 3D-CAD capabilities."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+# Ship this project's LICENSE plus third-party attribution + vendored MIT license texts
+# (Blender/FreeCAD addons) into the wheel's .dist-info/licenses/.
+license-files = [
+    "LICENSE",
+    "src/capabilities/blender/NOTICE.md",
+    "src/capabilities/freecad/NOTICE.md",
+    "src/capabilities/blender/qwen_mm_plugins_blender/vendor/LICENSE",
+    "src/capabilities/freecad/qwen_mm_plugins_freecad/vendor/FreeCADMCP/LICENSE",
+]
+authors = [{ name = "Qwen Team" }]
+keywords = ["mcp", "vision-language", "qwen", "video", "agent-skills"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Base runtime — enough to run a server + read_image; everything else is an extra below.
+dependencies = [
+    "mcp>=1.0.0,<2",
+    "anyio>=4.0,<5",
+    "pillow<12",
+]
+
+[project.urls]
+Homepage = "https://github.com/QwenLM/Qwen-MM-Plugins"
+Repository = "https://github.com/QwenLM/Qwen-MM-Plugins"
+Issues = "https://github.com/QwenLM/Qwen-MM-Plugins/issues"
+
+[project.optional-dependencies]
+# capability extras — compose via the profiles below
+api = ["openai", "dashscope", "requests"]     # vision_chat / ocr / grounding / ASR / web+image search
+# viz = the full visualize stack — a `core` install then renders every format out of the box.
+viz = [
+    "pypdfium2", "resvg-py", "lxml",          # PDF raster+text (pypdfium2) / SVG (resvg) / DrawIO / LaTeX
+    "pandas", "matplotlib", "openpyxl", "tabulate",  # CSV / XLSX
+    "numpy<3",                                # 3D render math (renderers/model3d) — also pulled in by the libs above
+    "nbformat",                               # Jupyter notebooks
+    "geopandas",                              # GIS (.geojson/.kml/.shp)
+    "trimesh", "pyrender", "cascadio",        # 3D (.obj/.stl/.glb)
+    "playwright",                             # HTML screenshot
+]
+video-memory = ["numpy<3", "requests"]        # long-video graph-memory server
+video-edit = ["dashscope", "requests"]        # image/video/audio generation server
+example = ["openai"]                           # template capability — base deps + openai (for the `describe` API demo)
+oss = ["oss2"]                                 # optional: serve large videos/frames by signed OSS URL (core OSS_VIDEO_BUCKET + memory-build clip upload)
+blender = []                                   # Blender live-session MCP client (stdlib socket; needs a running Blender + addon)
+freecad = []                                   # FreeCAD live-session MCP client (stdlib xml-rpc; needs a running FreeCAD + addon)
+# profiles — install ONE. `core` bundles all of visualize; `all` layers the other servers on top.
+core = ["qwen-mm-plugins[api,viz]"]
+memory = ["qwen-mm-plugins[core,video-memory]"]
+all = ["qwen-mm-plugins[core,video-memory,video-edit,blender,freecad]"]
+
+[project.scripts]
+qwen-mm-plugins-core = "qwen_mm_plugins_core.__main__:main"
+qwen-mm-plugins-video-memory = "qwen_mm_plugins_video_memory.__main__:main"
+qwen-mm-plugins-video-edit = "qwen_mm_plugins_video_edit.__main__:main"
+qwen-mm-plugins-example = "qwen_mm_plugins_example.__main__:main"
+qwen-mm-plugins-blender = "qwen_mm_plugins_blender.__main__:main"
+qwen-mm-plugins-freecad = "qwen_mm_plugins_freecad.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Skip hydra-core's pytest plugin if it's in the ambient env (it can fail to import on an antlr4
+# mismatch); harmless no-op otherwise.
+addopts = "-p no:hydra_pytest"
+markers = [
+    # Live API round-trips (test_api_reachability.py). Skipped automatically when the relevant
+    # credential is absent; select with `-m reachability`, exclude with `-m "not reachability"`.
+    "reachability: hits real DashScope/Serper endpoints; requires credentials",
+]
+
+# Packages live at src/capabilities/<cap>/<import_name>/ and src/{shared,mcp_framework}: map each
+# import name to its dir, then find them + subpackages under `where` (include=… drops the skill/ dirs).
+[tool.setuptools]
+py-modules = ["mcp_framework"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+qwen_mm_plugins_core = "src/capabilities/core/qwen_mm_plugins_core"
+qwen_mm_plugins_video_memory = "src/capabilities/video-memory/qwen_mm_plugins_video_memory"
+qwen_mm_plugins_video_edit = "src/capabilities/video-edit/qwen_mm_plugins_video_edit"
+qwen_mm_plugins_example = "src/capabilities/example/qwen_mm_plugins_example"
+qwen_mm_plugins_blender = "src/capabilities/blender/qwen_mm_plugins_blender"
+qwen_mm_plugins_freecad = "src/capabilities/freecad/qwen_mm_plugins_freecad"
+shared = "src/shared"
+
+[tool.setuptools.packages.find]
+where = ["src/capabilities/core", "src/capabilities/video-memory", "src/capabilities/video-edit", "src/capabilities/example", "src/capabilities/blender", "src/capabilities/freecad", "src"]
+include = ["qwen_mm_plugins*", "shared*"]
+
+# The vendored live-session addons ship as package DATA (not importable subpackages — no __init__ on
+# vendor/): --launch-app resolves them on disk and hands them to Blender/FreeCAD, which load them.
+[tool.setuptools.package-data]
+qwen_mm_plugins_blender = ["vendor/*.py", "vendor/**/*.py", "vendor/LICENSE"]
+qwen_mm_plugins_freecad = ["vendor/**/*.py", "vendor/FreeCADMCP/*.py", "vendor/FreeCADMCP/rpc_server/*.py", "vendor/FreeCADMCP/LICENSE"]
+
+[tool.setuptools.dynamic]
+version = { attr = "mcp_framework.__version__" }

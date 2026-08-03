@@ -1,0 +1,341 @@
+"""Hermetic unit tests for the core API tool handlers (apis/*.py).
+
+These tools normally hit an external endpoint (DashScope OpenAI-compatible, Serper,
+a SAM3 server). The handlers all import their network boundary lazily *inside*
+`handle`, so — exactly like test_api_clients.py — monkeypatching the module attribute
+(`call_openai_chat`, `serper.post_serper`, `requests.post`) is enough to exercise the
+handler with NO live network and NO API key. Nothing here should ever touch the wire.
+
+Split into three layers:
+  Tier 1 — pure functions (parsers/formatters): zero mocks.
+  Tier 2 — handler guards (empty input, missing key/file/server): early returns, no network.
+  Tier 3 — handler happy-path with the network boundary mocked.
+
+Live reachability (does the real API answer?) lives in test_api_reachability.py.
+"""
+
+import base64
+import json
+import types
+
+import pytest
+
+# Collection guard: importing qwen_mm_plugins_core pulls in stdio_streaming → the `mcp` SDK.
+# Without this, a missing `mcp` fails COLLECTION of the whole file (31 errors) instead of skipping.
+pytest.importorskip("mcp")
+
+import shared.api_openai as oa  # noqa: E402  (import after the importorskip guard)
+from qwen_mm_plugins_core import serper  # noqa: E402
+from qwen_mm_plugins_core.apis import (  # noqa: E402
+    asr,
+    grounding,
+    image_search,
+    ocr,
+    segmentation,
+    vision_chat,
+    web_extractor,
+    web_search,
+)
+
+
+def _is_error(blocks) -> bool:
+    return bool(blocks) and blocks[0].get("type") == "text" and blocks[0]["text"].startswith("Error:")
+
+
+def _chat_response(content: str):
+    """Mimic the OpenAI SDK response shape the handlers read: resp.choices[0].message.content."""
+    message = types.SimpleNamespace(content=content)
+    return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message)])
+
+
+class _FakeHTTPResponse:
+    def __init__(self, payload: dict):
+        self._payload = payload
+
+    def raise_for_status(self):  # noqa: D401 - test stub
+        return None
+
+    def json(self):
+        return self._payload
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Tier 1 — pure functions (no network, no mocks)
+# ══════════════════════════════════════════════════════════════════════
+
+# ── grounding.parse_grounding ────────────────────────────────────────
+
+
+def test_grounding_parses_plain_json_and_maps_pixels():
+    text = '[{"label": "cat", "bbox_2d": [0, 0, 500, 1000]}]'
+    got = grounding.parse_grounding(text, img_w=96, img_h=64)
+    assert len(got) == 1
+    assert got[0]["label"] == "cat"
+    assert got[0]["bbox_normalized"] == [0, 0, 500, 1000]
+    # 500/1000*96 = 48 ; 1000/1000*64 = 64
+    assert got[0]["bbox_pixel"] == [0, 0, 48, 64]
+
+
+def test_grounding_strips_markdown_fence():
+    text = '```json\n[{"label": "x", "bbox_2d": [100, 100, 200, 200]}]\n```'
+    got = grounding.parse_grounding(text, 1000, 1000)
+    assert got and got[0]["bbox_pixel"] == [100, 100, 200, 200]
+
+
+def test_grounding_unwraps_dict_and_alt_keys():
+    # dict wrapper + alternate label/bbox key names
+    text = '{"detections": [{"name": "dog", "box": [10, 20, 30, 40]}]}'
+    got = grounding.parse_grounding(text, 1000, 1000)
+    assert got and got[0]["label"] == "dog"
+    assert got[0]["bbox_normalized"] == [10, 20, 30, 40]
+
+
+def test_grounding_ref_box_fallback():
+    text = "<ref>bird</ref><box>(10,20),(30,40)</box>"
+    got = grounding.parse_grounding(text, 1000, 1000)
+    assert got and got[0]["label"] == "bird"
+    assert got[0]["bbox_normalized"] == [10, 20, 30, 40]
+
+
+def test_grounding_garbage_returns_empty():
+    assert grounding.parse_grounding("no boxes anywhere", 100, 100) == []
+
+
+# ── web_search._format_results ───────────────────────────────────────
+
+
+def test_web_search_format_numbers_and_advances_id():
+    docs = [
+        {"link": "http://a", "title": "A", "snippet": "sa", "date": "d1"},
+        {"link": "http://b", "title": "B", "snippet": "sb"},
+    ]
+    text, next_id = web_search._format_results(docs, start_id=1)
+    assert "[1] http://a" in text and "[2] http://b" in text
+    assert next_id == 3
+
+
+def test_web_search_format_continues_numbering_and_skips_linkless():
+    docs = [{"title": "no link"}, {"link": "http://c", "title": "C"}]
+    text, next_id = web_search._format_results(docs, start_id=5)
+    assert "[5] http://c" in text  # linkless doc skipped, numbering stays contiguous
+    assert next_id == 6
+
+
+def test_web_search_format_empty():
+    text, next_id = web_search._format_results([], start_id=1)
+    assert text == "No results found." and next_id == 1
+
+
+# ── image_search._format_results ─────────────────────────────────────
+
+
+def test_image_search_format_and_empty():
+    docs = [{"title": "T", "link": "http://l", "source": "src", "imageUrl": "http://img"}]
+    out = image_search._format_results(docs)
+    assert "[1]" in out and "http://img" in out and "http://l" in out
+    assert image_search._format_results([]) == "No results found."
+
+
+# ── asr time/format helpers ──────────────────────────────────────────
+
+
+def test_asr_ms_to_srt_time():
+    assert asr._ms_to_srt_time(3_661_001) == "01:01:01,001"
+    assert asr._ms_to_srt_time(0) == "00:00:00,000"
+
+
+def test_asr_format_srt_and_text():
+    chunks = [(0.0, 1.5, ["hello"]), (1.5, 3.0, ["world", "again"])]
+    srt = asr._format_srt(chunks)
+    assert "00:00:00,000 --> 00:00:01,500" in srt
+    assert "hello" in srt and "world" in srt
+    # three sentences → numbered 1,2,3
+    assert srt.splitlines()[0] == "1"
+    assert asr._format_text(chunks) == "hello\nworld\nagain"
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Tier 2 — handler guards (early returns, no network)
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_web_search_empty_queries_guard():
+    assert _is_error(web_search.handle({"queries": []}))
+
+
+def test_web_extractor_empty_urls_guard():
+    assert _is_error(web_extractor.handle({"urls": []}))
+
+
+def test_web_search_missing_key_guard(monkeypatch):
+    monkeypatch.setattr(serper, "resolve_serper_key", lambda a: "")
+    blocks = web_search.handle({"queries": ["hello"]})
+    assert _is_error(blocks) and "API key" in blocks[0]["text"]
+
+
+def test_image_search_missing_key_guard(monkeypatch):
+    monkeypatch.setattr(serper, "resolve_serper_key", lambda a: "")
+    assert _is_error(image_search.handle({"image_path": "/nope.jpg"}))
+
+
+def test_segmentation_missing_server_guard(monkeypatch):
+    # Force the SAM3 env lookup to miss so the guard fires regardless of the ambient env.
+    monkeypatch.setattr(segmentation, "get_env", lambda *_a, **_k: None)
+    blocks = segmentation.handle({"image_path": "/x.jpg", "prompt": "cat"})
+    assert _is_error(blocks) and "SAM3" in blocks[0]["text"]
+
+
+def test_ocr_missing_file_guard():
+    assert _is_error(ocr.handle({"image_path": "/does/not/exist.png"}))
+
+
+def test_grounding_missing_file_guard():
+    assert _is_error(grounding.handle({"image_path": "/does/not/exist.png", "prompt": "cat"}))
+
+
+def test_vision_chat_dry_run_builds_request_without_network(sample_image):
+    blocks = vision_chat.handle({"images": [sample_image], "text": "hello", "dry_run": True})
+    assert len(blocks) == 1 and blocks[0]["type"] == "text"
+    payload = json.loads(blocks[0]["text"])
+    content = payload["request"]["messages"][0]["content"]
+    # image part first, text part last; base64 image redacted (not the raw data URL)
+    assert content[-1] == {"type": "text", "text": "hello"}
+    img_part = content[0]
+    assert img_part["type"] == "image_url"
+    assert img_part["image_url"]["url"].startswith("<base64 image")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Tier 3 — happy path with the network boundary mocked
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_ocr_returns_model_text(monkeypatch, sample_image):
+    pytest.importorskip("openai")
+    monkeypatch.setattr(oa, "call_openai_chat", lambda **kw: _chat_response("EXTRACTED TEXT"))
+    blocks = ocr.handle({"image_path": sample_image})
+    assert blocks == [{"type": "text", "text": "EXTRACTED TEXT"}]
+
+
+def test_grounding_maps_boxes_and_draws(monkeypatch, sample_image):
+    pytest.importorskip("openai")
+    # sample_image is 96×64; a right-half box in 0-1000 coords → pixels [48,0,96,64]
+    model_json = '[{"label": "blue", "bbox_2d": [500, 0, 1000, 1000]}]'
+    monkeypatch.setattr(oa, "call_openai_chat", lambda **kw: _chat_response(model_json))
+
+    blocks = grounding.handle({"image_path": sample_image, "prompt": "regions", "return_img": True})
+    result = json.loads(blocks[0]["text"])
+    assert result["image_size"] == {"width": 96, "height": 64}
+    assert result["detections"][0]["bbox_pixel"] == [48, 0, 96, 64]
+    # return_img=True with a detection → an image block is appended
+    assert any(b["type"] == "image" for b in blocks)
+
+
+def test_web_search_formats_serper_docs(monkeypatch):
+    monkeypatch.setattr(serper, "resolve_serper_key", lambda a: "k")
+    monkeypatch.setattr(
+        serper,
+        "post_serper",
+        lambda path, payload, key, **kw: {"organic": [{"link": "http://x", "title": "T", "snippet": "S"}]},
+    )
+    blocks = web_search.handle({"queries": ["q"]})
+    text = blocks[0]["text"]
+    assert "[1] http://x" in text and "web_extractor" in text  # result + tip
+
+
+def test_web_search_multi_query_headers_and_numbering(monkeypatch):
+    monkeypatch.setattr(serper, "resolve_serper_key", lambda a: "k")
+    seq = iter(
+        [
+            {"organic": [{"link": "http://a", "title": "A"}]},
+            {"organic": [{"link": "http://b", "title": "B"}]},
+        ]
+    )
+    monkeypatch.setattr(serper, "post_serper", lambda *a, **k: next(seq))
+    text = web_search.handle({"queries": ["q1", "q2"]})[0]["text"]
+    assert "## Query: q1" in text and "## Query: q2" in text
+    assert "[1] http://a" in text and "[2] http://b" in text  # numbering continues across queries
+
+
+def test_web_extractor_truncates_and_labels_goal(monkeypatch):
+    monkeypatch.setattr(serper, "resolve_serper_key", lambda a: "k")
+    monkeypatch.setattr(serper, "post_serper", lambda *a, **k: {"markdown": "M" * 20_000})
+    blocks = web_extractor.handle({"urls": ["http://p"], "goal": "find X"})
+    text = blocks[0]["text"]
+    assert "## http://p" in text and "Goal: find X" in text
+    body = text.split("\n\n", 2)[-1]
+    assert len(body) <= web_extractor.CONTENT_LIMIT
+
+
+def test_image_search_url_fast_path(monkeypatch):
+    monkeypatch.setattr(serper, "resolve_serper_key", lambda a: "k")
+    monkeypatch.setattr(
+        serper, "post_serper", lambda *a, **k: {"organic": [{"title": "T", "link": "http://l", "imageUrl": "http://i"}]}
+    )
+    # a public URL and no crop → straight to Lens, no upload/download
+    blocks = image_search.handle({"image_path": "https://example.com/a.jpg"})
+    assert "[1]" in blocks[0]["text"] and "http://i" in blocks[0]["text"]
+
+
+def test_segmentation_returns_text_and_image(monkeypatch):
+    import requests
+
+    vis_b64 = base64.b64encode(b"fake-png-bytes").decode()
+    payload = {"num_masks": 1, "results": [{"score": 0.912, "box": [1.11, 2.22, 3.33, 4.44]}], "image_b64": vis_b64}
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeHTTPResponse(payload))
+
+    blocks = segmentation.handle({"image_path": __file__, "prompt": "thing", "server": "http://sam3"})
+    assert blocks[0]["type"] == "text"
+    result = json.loads(blocks[0]["text"])
+    assert result["num_masks"] == 1 and result["results"][0]["score"] == 0.912
+    assert any(b["type"] == "image" for b in blocks)
+
+
+def test_segmentation_no_masks_omits_image(monkeypatch):
+    import requests
+
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeHTTPResponse({"num_masks": 0, "results": []}))
+    blocks = segmentation.handle({"image_path": __file__, "prompt": "thing", "server": "http://sam3"})
+    assert all(b["type"] != "image" for b in blocks)
+
+
+def test_segmentation_connection_error_is_reported(monkeypatch):
+    import requests
+
+    def _boom(*a, **k):
+        raise requests.ConnectionError("refused")
+
+    monkeypatch.setattr(requests, "post", _boom)
+    blocks = segmentation.handle({"image_path": __file__, "prompt": "thing", "server": "http://sam3"})
+    assert _is_error(blocks) and "cannot connect" in blocks[0]["text"]
+
+
+# ── Out-of-box error handling: API/network failures return a clean text_error, never raise ──
+# (regression guards for the try/except added to ocr / grounding / segmentation)
+def test_ocr_returns_error_when_api_raises(monkeypatch, sample_image):
+    def _boom(**kw):
+        raise RuntimeError("boom-401")
+
+    monkeypatch.setattr(oa, "call_openai_chat", _boom)
+    out = ocr.handle({"image_path": sample_image})
+    assert _is_error(out) and "boom-401" in out[0]["text"]
+
+
+def test_grounding_returns_error_when_api_raises(monkeypatch, sample_image):
+    def _boom(**kw):
+        raise RuntimeError("boom-timeout")
+
+    monkeypatch.setattr(oa, "call_openai_chat", _boom)
+    out = grounding.handle({"image_path": sample_image, "prompt": "cats"})
+    assert _is_error(out) and "boom-timeout" in out[0]["text"]
+
+
+def test_segmentation_returns_error_on_non_connection_failure(monkeypatch, sample_image):
+    import requests
+
+    def _boom(*a, **k):
+        raise requests.exceptions.Timeout("slow")  # not ConnectionError -> hits the generic except
+
+    monkeypatch.setattr(requests, "post", _boom)
+    out = segmentation.handle({"image_path": sample_image, "server": "http://sam3.invalid"})
+    assert _is_error(out)

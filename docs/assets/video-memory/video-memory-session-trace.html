@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Memory QA Session Trace</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #c9d1d9; --text-dim: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --red: #f85149; --orange: #d29922; --purple: #bc8cff;
+    --user-bg: #1c2333; --asst-bg: #1a2332; --tool-bg: #121820;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; padding: 24px; }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { color: #fff; font-size: 24px; margin-bottom: 8px; }
+  .meta { color: var(--text-dim); font-size: 13px; margin-bottom: 32px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+  .turn-header { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin: 24px 0 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+  .turn-header:hover { border-color: var(--accent); }
+  .turn-header .badge { background: var(--accent); color: #000; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; white-space: nowrap; }
+  .turn-header .title { flex: 1; font-weight: 600; font-size: 15px; }
+  .turn-header .arrow { color: var(--text-dim); transition: transform .2s; }
+  .turn-header.collapsed .arrow { transform: rotate(-90deg); }
+  .turn-body { padding-left: 20px; border-left: 2px solid var(--border); margin-left: 16px; }
+  .turn-body.hidden { display: none; }
+  .step { margin: 8px 0; padding: 10px 14px; border-radius: var(--radius); font-size: 14px; position: relative; }
+  .step.user-msg { background: var(--user-bg); border-left: 3px solid var(--accent); }
+  .step.asst-text { background: var(--asst-bg); border-left: 3px solid var(--green); }
+  .step.tool-call { background: var(--tool-bg); border-left: 3px solid var(--orange); }
+  .step.tool-result { background: var(--tool-bg); border-left: 3px solid var(--purple); }
+  .step.tool-error { border-left-color: var(--red); }
+  .step-label { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+  .step-label.user { color: var(--accent); }
+  .step-label.assistant { color: var(--green); }
+  .step-label.tool { color: var(--orange); }
+  .step-label.result { color: var(--purple); }
+  .step-label.error { color: var(--red); }
+  .step-content { white-space: pre-wrap; word-break: break-word; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; }
+  .tool-name { color: var(--orange); font-weight: 700; }
+  .tool-input { color: var(--text-dim); font-size: 12px; margin-top: 4px; }
+  .phase-marker { display: inline-block; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px 12px; font-size: 12px; font-weight: 600; color: var(--accent); margin: 16px 0 4px; }
+  .connector { width: 2px; height: 12px; background: var(--border); margin-left: 30px; }
+  .summary-box { background: linear-gradient(135deg, #1a2332, #162030); border: 1px solid var(--accent); border-radius: var(--radius); padding: 16px; margin: 8px 0; }
+  .summary-box h3 { color: var(--accent); font-size: 14px; margin-bottom: 8px; }
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; text-align: center; min-width: 120px; }
+  .stat .val { font-size: 24px; font-weight: 700; color: var(--accent); }
+  .stat .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Video Memory QA Session Trace</h1>
+  <div class="meta">
+    Session: <code>644ca910-3f7e-45b1-bf83-8331670a10b5</code><br>
+    Video: <code>/path/to/videos/demo_video/video_1h.mp4</code> (1 hour)<br>
+    Date: 2026-07-17
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="val">2</div><div class="label">User Turns</div></div>
+    <div class="stat"><div class="val">9</div><div class="label">Tool Calls</div></div>
+    <div class="stat"><div class="val">3m30s</div><div class="label">Memory Build</div></div>
+    <div class="stat"><div class="val">22</div><div class="label">Total Steps</div></div>
+  </div>
+
+  <!-- Turn 1 -->
+  <div class="turn-header" onclick="toggle(this)">
+    <span class="badge">Turn 1</span>
+    <span class="title">这个视频讲了什么? &mdash; Memory 构建 + 回答</span>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="turn-body" id="turn1">
+    <div class="phase-marker">Phase: User Question</div>
+    <div class="step user-msg">
+      <div class="step-label user">User</div>
+      <div class="step-content">@/path/to/videos/demo_video/video_1h.mp4 这个视频讲了什么?</div>
+    </div>
+
+    <div class="phase-marker">Phase: Skill Activation</div>
+    <div class="step asst-text">
+      <div class="step-label assistant">Assistant</div>
+      <div class="step-content">Let me use the video analysis tools to understand this video's content.</div>
+    </div>
+    <div class="step tool-call">
+      <div class="step-label tool">Tool Call</div>
+      <div class="step-content"><span class="tool-name">Skill</span></div>
+      <div class="tool-input">{"skill": "qwen-mm-plugins-video-memory", "args": ".../video_1h.mp4"}</div>
+    </div>
+    <div class="step tool-result">
+      <div class="step-label result">Result</div>
+      <div class="step-content">Launching skill: qwen-mm-plugins-video-memory
+&rarr; SKILL.md loaded (Graph Memory retrieval workflow)</div>
+    </div>
+
+    <div class="phase-marker">Phase: Check Existing Memory</div>
+    <div class="step asst-text">
+      <div class="step-label assistant">Assistant</div>
+      <div class="step-content">Let me check if memory has already been built for this video, then query it to understand the content.</div>
+    </div>
+    <div class="step tool-call">
+      <div class="step-label tool">Tool Call</div>
+      <div class="step-content"><span class="tool-name">Bash</span></div>
+      <div class="tool-input">ls /path/to/videos/video_1h.mp4.memory/ 2>/dev/null</div>
+    </div>
+    <div class="step tool-result tool-error">
+      <div class="step-label error">Error</div>
+      <div class="step-content">Exit code 2 &mdash; Memory directory does not exist</div>
+    </div>
+
+    <div class="phase-marker">Phase: Build Memory</div>
+    <div class="step asst-text">
+      <div class="step-label assistant">Assistant</div>
+      <div class="step-content">Memory hasn't been built yet for this video. Let me build it first.</div>
+    </div>
+    <div class="step tool-call">
+      <div class="step-label tool">Tool Call</div>
+      <div class="step-content"><span class="tool-name">Bash</span></div>
+      <div class="tool-input">ls .../build_memory.sh  &rarr; confirmed script exists</div>
+    </div>
+    <div class="step tool-call">
+      <div class="step-label tool">Tool Call</div>
+      <div class="step-content"><span class="tool-name">Bash</span> (background, timeout=600s)</div>
+      <div class="tool-input">bash build_memory.sh /path/to/videos/video_1h.mp4</div>
+    </div>
+    <div class="step tool-result">
+      <div class="step-label result">Result</div>
+      <div class="step-content">Command running in background with ID: bgutvi9q1</div>
+    </div>
+    <div class="step asst-text">
+      <div class="step-label assistant">Assistant</div>
+      <div class="step-content">视频记忆正在构建中，这个过程需要一些时间（大约几分钟到十几分钟），因为需要对整个1小时的视频进行分析。构建完成后我会查询记忆来告诉你视频的内容。</div>
+    </div>
+
+    <div class="phase-marker">Phase: Memory Build Complete &rarr; Query</div>
+    <div class="step user-msg">
+      <div class="step-label user">System Notification</div>
+      <div class="step-content">Background command "Build graph memory for the 1-hour video" completed (exit code 0)</div>
+    </div>
+    <div class="step asst-text">
+      <div class="step-label assistant">Assistant</div>
+      <div class="step-content">视频记忆构建完成了。让我查询记忆来了解视频内容。</div>
+    </div>
+    <div class="step tool-call">
+      <div class="step-label tool">Tool Call</div>
+      <div class="step-content"><span class="tool-name">Bash</span></div>
+      <div class="tool-input">ls video_1h.mp4.memory/</div>
+    </div>
+    <div class="step tool-result">
+      <div class="step-label result">Result</div>
+      <div class="step-content">01_macros.json  02_macros_with_subgraphs.json  chunk_00  embeddings.npz  graph_memory.json  subgraphs</div>
+    </div>
+    <div class="step tool-call">
+      <div class="step-label tool">Tool Call &times;2</div>
+      <div class="step-content"><span class="tool-name">Read</span></div>
+      <div class="tool-input">graph_memory.json (lines 1-100, then 100-300)</div>
+    </div>
+
+    <div class="phase-marker">Phase: Answer</div>
+    <div class="summary-box">
+      <h3>Final Answer</h3>
+      <div class="step-content">## 视频内容：一只橘猫的完整日常生活记录
+
+这是一段约1小时的宠物监控视频，记录了一只橘猫在卧室环境中一天的完整日常活动。
+房间里有蓝色的床、食物碗、自动猫砂盆、圆形猫窝、白色泰迪熊玩偶等物品。
+
+### 视频按时间线分为6个主要段落：
+1. **初始进食与探索** (0:00 - 8:32) — 主人给橘猫放食物碗
+2. **休息与互动** — 猫在床上和猫窝间活动
+3. **独立探索** — 猫独自在房间活动
+4. **深度休息** — 在圆形猫窝中长时间睡眠
+5. **再次活跃** — 醒来后进食和活动
+6. **最终安顿** — 回到猫窝休息</div>
+    </div>
+  </div>
+
+  <!-- Turn 2 -->
+  <div class="turn-header" onclick="toggle(this)">
+    <span class="badge">Turn 2</span>
+    <span class="title">构建memory总用时多少</span>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="turn-body" id="turn2">
+    <div class="step user-msg">
+      <div class="step-label user">User</div>
+      <div class="step-content">构建memory总用时多少</div>
+    </div>
+    <div class="step tool-call">
+      <div class="step-label tool">Tool Call</div>
+      <div class="step-content"><span class="tool-name">Read</span></div>
+      <div class="tool-input">bgutvi9q1.output (build log)</div>
+    </div>
+    <div class="step tool-call">
+      <div class="step-label tool">Tool Call &times;3</div>
+      <div class="step-content"><span class="tool-name">Bash</span></div>
+      <div class="tool-input">stat chunk_00/01_macros.json &rarr; 14:35:11
+stat embeddings.npz &rarr; 14:38:39
+stat chunk_00 &rarr; 14:37:08</div>
+    </div>
+    <div class="summary-box">
+      <h3>Final Answer</h3>
+      <div class="step-content">构建 memory 的总用时约为 **3分30秒**（从 ~14:35:11 首次写入到 14:38:41 完成）。
+
+具体各阶段耗时：
+- **Phase 1**（视频分段 + 抽帧）：处理了12个 macro event，与 Phase 2 并行执行
+- **Phase 2**（子图构建）：10个并行 worker，为每个 macro 提取实体/事件/关系
+- **Phase 3**（层次聚合 + embedding）：聚合 macro → super → root，构建向量索引</div>
+    </div>
+  </div>
+
+  <!-- Workflow diagram -->
+  <div style="margin-top:40px">
+    <h2 style="color:#fff; font-size:18px; margin-bottom:16px">Workflow Overview</h2>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; font-family:'SF Mono','Fira Code',monospace; font-size:13px; line-height:2">
+<span style="color:var(--accent)">User Question</span>
+  <span style="color:var(--text-dim)">&darr;</span>
+<span style="color:var(--green)">Skill: video-memory</span> <span style="color:var(--text-dim)">&rarr; SKILL.md loaded</span>
+  <span style="color:var(--text-dim)">&darr;</span>
+<span style="color:var(--orange)">Check memory exists?</span> <span style="color:var(--red)">&rarr; NO</span>
+  <span style="color:var(--text-dim)">&darr;</span>
+<span style="color:var(--orange)">Build memory</span> <span style="color:var(--text-dim)">(background, ~3m30s)</span>
+  <span style="color:var(--text-dim)">&darr;</span>
+  <span style="color:var(--text-dim)">P1: Sliding-window segmentation &rarr; 12 macro events</span>
+  <span style="color:var(--text-dim)">P2: Subgraph extraction (10 parallel workers)</span>
+  <span style="color:var(--text-dim)">P3: Hierarchical aggregation + embedding index</span>
+  <span style="color:var(--text-dim)">&darr;</span>
+<span style="color:var(--green)">Memory ready</span> <span style="color:var(--text-dim)">&rarr; graph_memory.json + embeddings.npz</span>
+  <span style="color:var(--text-dim)">&darr;</span>
+<span style="color:var(--orange)">Read graph_memory.json</span> <span style="color:var(--text-dim)">&rarr; Answer from memory</span>
+  <span style="color:var(--text-dim)">&darr;</span>
+<span style="color:var(--purple)">Subsequent queries</span> <span style="color:var(--text-dim)">&rarr; search_nodes / get_subgraph / read_video</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggle(header) {
+  const body = header.nextElementSibling;
+  header.classList.toggle('collapsed');
+  body.classList.toggle('hidden');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "name": "qwen-mm-plugins",
+  "owner": { "name": "QwenLM", "url": "https://github.com/QwenLM/Qwen-MM-Plugins" },
+  "metadata": { "description": "Qwen multimodal understanding plugins — Agent Skills + MCP servers", "version": "1.0.0" },
+  "plugins": [
+    {
+      "name": "qwen-mm-plugins-core",
+      "source": "./src/capabilities/core",
+      "description": "Vision: dynamic-resolution read of images/videos/docs/3D + OCR, grounding, segmentation, ASR, vision-chat as MCP tools."
+    },
+    {
+      "name": "qwen-mm-plugins-video-memory",
+      "source": "./src/capabilities/video-memory",
+      "description": "Hierarchical graph memory for long-video QA (build + query) as an MCP server."
+    },
+    {
+      "name": "qwen-mm-plugins-video-edit",
+      "source": "./src/capabilities/video-edit",
+      "description": "ffmpeg-based video-editing workflows (skill) + image/video/audio generation as MCP tools."
+    },
+    {
+      "name": "qwen-mm-plugins-edu-agent",
+      "source": "./src/capabilities/edu-agent",
+      "description": "Educational tutorial-video generator (skill only): turn a math/science problem or image into a step-by-step Chinese explainer video or interactive page."
+    },
+    {
+      "name": "qwen-mm-plugins-blender",
+      "source": "./src/capabilities/blender",
+      "description": "Blender 3D modeling: drive a live Blender (execute Python, screenshot the viewport, PolyHaven/Sketchfab/Hyper3D/Hunyuan3D assets) as MCP tools + a build→refine→verify skill. Needs a running Blender + addon."
+    },
+    {
+      "name": "qwen-mm-plugins-freecad",
+      "source": "./src/capabilities/freecad",
+      "description": "FreeCAD parametric CAD: create/edit objects, execute Python, named-view screenshots, parts library, and CalculiX FEM as MCP tools + a skill. Needs a running FreeCAD + addon."
+    }
+  ]
+}
