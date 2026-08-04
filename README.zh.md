@@ -2,7 +2,7 @@
 
 [English](README.md) · **中文**
 
-面向 Qwen 模型的原生多模态理解插件，适配任何支持 Plugins / Skills / MCP 的 Harness。
+面向 Qwen 模型的原生多模态理解插件，让任何 Agent Harness 都具备原生多模态能力。
 
 ## 目录
 
