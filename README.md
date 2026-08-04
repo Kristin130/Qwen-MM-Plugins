@@ -42,7 +42,8 @@ A capability = a **skill** (so the model knows the tools exist) + an optional **
 One script handles **install · configure · verify · uninstall** across every harness it supports (Claude Code · Codex · Qoder · OpenClaw · Qwen Code · Gemini CLI). It drives each harness's own native install under the hood — nothing reinvented — and writes a single shared config file (`~/.qwen-mm-plugins/config`) that GUI and terminal harnesses both read, so you set things up once:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install.sh | bash   # guided menu
+curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install.sh > install.sh
+bash install.sh
 ```
 
 Or run one action at a time — `bash install.sh install` / `configure` / `verify` / `uninstall` (what `configure` and `verify` do is detailed under [Configuration](#-configuration) and [Dependencies](#-dependencies)).
@@ -85,7 +86,7 @@ The API-based tools need a key — native image / video / document reading doesn
 Export them in your shell, or persist them to `~/.qwen-mm-plugins/config` (read whenever a var isn't already in the environment — so GUI-launched harnesses pick them up too). The guided installer's Configure step writes that file for you:
 
 ```bash
-bash install.sh configure     # interactive: API keys, endpoints, dirs, OSS, host addresses — the whole grouped list
+bash install.sh configure
 ```
 
 For non-interactive/automation setup and the full environment-variable catalog, see [`docs/en/installation.md`](docs/en/installation.md).
