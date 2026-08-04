@@ -58,7 +58,7 @@ viz = [
     "playwright",                             # HTML screenshot
 ]
 video-memory = ["numpy<3", "requests"]        # long-video graph-memory server
-video-edit = ["dashscope", "requests"]        # image/video/audio generation server
+video-edit = ["dashscope>=1.25.16", "requests"]  # image/video/audio generation server
 example = ["openai"]                           # template capability — base deps + openai (for the `describe` API demo)
 oss = ["oss2"]                                 # optional: serve large videos/frames by signed OSS URL (core OSS_VIDEO_BUCKET + memory-build clip upload)
 blender = []                                   # Blender live-session MCP client (stdlib socket; needs a running Blender + addon)

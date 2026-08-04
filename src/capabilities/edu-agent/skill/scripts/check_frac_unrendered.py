@@ -106,11 +106,12 @@ def main() -> int:
         print("These will appear as garbled text (e.g. 'dfrac12') in the final video.")
         print("")
         print("COMMON FIXES:")
-        print("  1. Run: python3 scripts/fix_katex_escaping.py dist")
+        scripts = Path(__file__).resolve().parent
+        print(f"  1. Run: {sys.executable} {scripts / 'fix_katex_escaping.py'} {dist}")
         print("     (auto-fixes \\dfrac → \\\\dfrac in JS strings)")
         print("  2. Ensure KaTeX JS is loaded from local path: ./katex/katex.min.js")
         print("  3. Ensure katex.render() calls have throwOnError: false")
-        print("  4. Re-run: python3 scripts/precheck.py dist")
+        print(f"  4. Re-run: {sys.executable} {scripts / 'precheck.py'} {dist}")
         return 1
 
     print(f"OK: no unrendered fractions in visible text across {len(files)} file(s).")

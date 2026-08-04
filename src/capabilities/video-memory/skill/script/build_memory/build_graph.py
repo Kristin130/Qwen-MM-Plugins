@@ -801,6 +801,12 @@ def _extract_one_subgraph(
     return i, macro
 
 
+def _has_subgraph_content(macro: MacroEvent) -> bool:
+    return bool(
+        macro.subgraph and (macro.subgraph.entities or macro.subgraph.micro_events or macro.subgraph.on_screen_texts)
+    )
+
+
 def _load_prebuilt_subgraph(macro: MacroEvent, subgraph_dir: str) -> bool:
     """Load a pre-built subgraph JSON file if it exists."""
     sg_path = os.path.join(subgraph_dir, f"{macro.macro_id}.json")
@@ -864,7 +870,7 @@ def _load_prebuilt_subgraph(macro: MacroEvent, subgraph_dir: str) -> bool:
         macro.key_entities = [{"name": e.name or e.entity_id, "type": e.entity_type} for e in entities[:10]]
         macro.event_types = list({e.event_type for e in events if e.event_type})
         macro.ocr_texts = [t.text for t in on_screen_texts]
-        return True
+        return _has_subgraph_content(macro)
     except Exception:
         return False
 
@@ -914,7 +920,7 @@ def step2_subgraph_extraction(
                 try:
                     _, updated = fut.result()
                     macros[idx] = updated
-                    if not updated.subgraph or (not updated.subgraph.entities and not updated.subgraph.micro_events):
+                    if not _has_subgraph_content(updated):
                         failed.append(idx)
                 except Exception as e:
                     print(f"  [{idx}] ERROR: {e}")
@@ -1301,20 +1307,23 @@ def _assemble_save_embed(
     memory.save(graph_path)
     print(f"\nGraph memory saved to: {graph_path}")
 
-    print("\nPhase 4: Building embedding index...")
-    try:
-        index = EmbeddingIndex()
-        nodes = memory.get_all_nodes()
-        if nodes:
-            index.build(nodes)
-            index_path = os.path.join(output_dir, "embeddings.npz")
-            index.save(index_path)
-            print(f"Embedding index saved to: {index_path} ({len(nodes)} nodes)")
-        else:
-            print("No nodes to embed")
-    except Exception as e:
-        print(f"Embedding build failed (can retry later): {e}")
+    _build_save_embeddings(memory, output_dir)
     return memory
+
+
+def _build_save_embeddings(memory: HierarchicalGraphMemory, output_dir: str) -> str:
+    """Build the embedding index and replace its output only after a complete save."""
+    print("\nPhase 4: Building embedding index...")
+    index = EmbeddingIndex()
+    nodes = memory.get_all_nodes()
+    if not nodes:
+        raise RuntimeError("graph contains no nodes; cannot build embeddings")
+    index.build(nodes)
+
+    index_path = os.path.join(output_dir, "embeddings.npz")
+    index.save(index_path)
+    print(f"Embedding index saved to: {index_path} ({len(nodes)} nodes)")
+    return index_path
 
 
 def build_graph_memory(
@@ -1498,6 +1507,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--phase3-only", action="store_true", help="Run only Phase 3 (load subgraphs + aggregation + embeddings)"
     )
+    parser.add_argument(
+        "--embeddings-only", action="store_true", help="Build embeddings from an existing graph_memory.json"
+    )
     parser.add_argument("--start-sec", type=float, default=0.0, help="Start time in seconds for Phase 1 (default: 0)")
     parser.add_argument(
         "--end-sec", type=float, default=None, help="End time in seconds for Phase 1 (default: full duration)"
@@ -1541,7 +1553,14 @@ if __name__ == "__main__":
         print(f"  Subgraphs copied to {os.path.join(args.output_dir, 'subgraphs')}")
         sys.exit(0)
 
-    if args.phase1_only:
+    if args.embeddings_only:
+        graph_path = os.path.join(args.output_dir, "graph_memory.json")
+        if not os.path.exists(graph_path):
+            print(f"ERROR: {graph_path} not found")
+            sys.exit(1)
+        _build_save_embeddings(HierarchicalGraphMemory.load(graph_path), args.output_dir)
+
+    elif args.phase1_only:
         os.makedirs(args.output_dir, exist_ok=True)
         duration = get_video_duration(args.video_path)
         print(f"Video duration: {duration:.0f}s ({duration / 60:.1f}min)")
@@ -1607,7 +1626,7 @@ if __name__ == "__main__":
         loaded = sum(1 for m in macros if _load_prebuilt_subgraph(m, subgraph_dir))
         print(f"Loaded {loaded}/{len(macros)} pre-built subgraphs")
 
-        missing = [m for m in macros if not m.subgraph]
+        missing = [m for m in macros if not _has_subgraph_content(m)]
         if missing:
             print(f"Extracting {len(missing)} remaining subgraphs...")
             macros = step2_subgraph_extraction(

@@ -17,7 +17,7 @@ class WanS2vArgs(BaseModel):
     action: Literal["detect", "generate"] = Field(
         description=(
             "Action to perform. "
-            "detect: check if image meets requirements (sync, free, always run first). "
+            "detect: check if image meets requirements (sync and billed per successful request; always run first). "
             "generate: create lip-sync video from image + audio (async, billed, 5-10 min)."
         )
     )
@@ -68,7 +68,8 @@ TOOL: dict[str, Any] = {
         "Digital human lip-sync video generation using Wan2.2-S2V. "
         "Takes a portrait image + audio and generates a talking-head video with lip sync. "
         "Two actions: "
-        "(1) detect — check if an image is suitable for digital human generation (sync, free); "
+        "(1) detect — check if an image is suitable for digital human generation "
+        "(sync and billed per successful request, regardless of detection result); "
         "(2) generate — submit image + audio to create lip-sync video (async, billed). "
         "Always run detect first before generate. "
         "Supports real humans (portrait/half-body/full-body) and cartoon characters. "
@@ -95,6 +96,14 @@ def _detect(image_url: str, api_key: str) -> list[dict[str, Any]]:
         timeout=30,
     )
     result = resp.json()
+
+    root_code = result.get("code")
+    if not 200 <= resp.status_code < 300 or root_code:
+        code = root_code or f"HTTP {resp.status_code}"
+        message = result.get("message", "request failed")
+        request_id = result.get("request_id") or result.get("requestId")
+        suffix = f" (request_id: {request_id})" if request_id else ""
+        return text_error(f"detection failed — [{code}] {message}{suffix}")
 
     output = result.get("output", {})
     check_pass = output.get("check_pass", False)

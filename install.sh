@@ -327,12 +327,19 @@ confirm() {  # confirm <prompt> [y|n default] -> 0/1
 run_cmd() {  # print, then run (unless QMP_DRY=1 or the binary is absent)
   printf '  %b$ %s%b\n' "$CD" "$*" "$C0"
   [ "$QMP_DRY" = 1 ] && return 0
-  if have "$1"; then
-    "$@" && ok "ok" || warn "command failed — you can run it manually"
-  else
+  if ! have "$1"; then
     warn "'$1' not on PATH — run the command above where '$1' is installed"
+    return 127
   fi
-  return 0
+  local rc
+  "$@"
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "ok"
+    return 0
+  fi
+  warn "command failed (exit $rc) — you can run it manually"
+  return "$rc"
 }
 
 default_cache_dir() {
@@ -439,8 +446,32 @@ ensure_uv() {
 }
 
 # ── the ONE place the uvx launch spec is built — verify / manual all reuse it ──
-# cap_spec <cap> → the git-pinned package the harness itself also launches with.
-cap_spec() { printf 'qwen-mm-plugins[%s] @ git+%s@%s' "$1" "$REPO_URL" "$REPO_REF"; }
+# cap_spec <cap> → the package the harness itself also launches with. A local QMP_REPO is a
+# PEP-508 file URL (no meaningless git ref); remote repositories keep the selected branch/tag/SHA.
+is_local_repo() {
+  case "$1" in file://*) return 0 ;; esac
+  [ -d "$1" ]
+}
+
+cap_spec() {
+  local cap=$1 repo=$REPO_URL path
+  case "$repo" in
+    file://*) printf 'qwen-mm-plugins[%s] @ %s' "$cap" "$repo" ;;
+    *)
+      if [ -d "$repo" ]; then
+        path=$(cd "$repo" 2>/dev/null && pwd -P) || return 1
+        path=${path//%/%25}; path=${path// /%20}; path=${path//#/%23}
+        printf 'qwen-mm-plugins[%s] @ file://%s' "$cap" "$path"
+      else
+        case "$repo" in
+          /*|./*|../*) printf 'QMP_REPO is not a directory: %s\n' "$repo" >&2; return 1 ;;
+          git+*) printf 'qwen-mm-plugins[%s] @ %s@%s' "$cap" "$repo" "$REPO_REF" ;;
+          *) printf 'qwen-mm-plugins[%s] @ git+%s@%s' "$cap" "$repo" "$REPO_REF" ;;
+        esac
+      fi
+      ;;
+  esac
+}
 
 # uvx_cap <cap> [uvx-flags...] -- [entry-args...] — print, then run the capability's uvx entry.
 # Honors QMP_DRY (print only). Returns uvx's real exit code (0 in dry mode). bash-3.2 safe: never
@@ -464,40 +495,46 @@ uvx_cap() {
 install_for() {  # install_for <harness> <plugin...>
   local h=$1; shift
   local bin; bin=$(harness_bin "$h")
-  local cap
+  local cap failed=0
   QMP_DRY=0; confirm "Run the $h install commands now (otherwise just print them)?" y || QMP_DRY=1
   case "$h" in
     claude)
-      run_cmd "$bin" plugin marketplace add "$REPO_URL"
-      for p in "$@"; do run_cmd "$bin" plugin install "${p}@${MARKETPLACE}"; done ;;
+      # Claude rejects a duplicate add; update is the normal path for an existing marketplace.
+      run_cmd "$bin" plugin marketplace add "$REPO_URL" ||
+        run_cmd "$bin" plugin marketplace update "$MARKETPLACE" || return
+      for p in "$@"; do run_cmd "$bin" plugin install "${p}@${MARKETPLACE}" || failed=1; done ;;
     codex)
       # add is idempotent, but on an ALREADY-added marketplace it does NOT refresh the git snapshot,
       # so newly-published capabilities would be missing and their `plugin add` would fail. `upgrade`
       # re-pulls the snapshot (no-op right after a fresh add). We refresh instead of remove→add because
       # removing a marketplace also drops every plugin already installed from it, including ones not
-      # reselected this run. Both go through run_cmd, so a failure just warns and we continue.
-      run_cmd "$bin" plugin marketplace add     "$REPO_URL"
-      run_cmd "$bin" plugin marketplace upgrade "$MARKETPLACE"
-      for p in "$@"; do run_cmd "$bin" plugin add "${p}@${MARKETPLACE}"; done ;;
+      # reselected this run. Stop on a failed prerequisite so the UI cannot report a false success.
+      run_cmd "$bin" plugin marketplace add "$REPO_URL" || return
+      # Local marketplaces read the checkout directly and cannot be upgraded as Git snapshots.
+      is_local_repo "$REPO_URL" || run_cmd "$bin" plugin marketplace upgrade "$MARKETPLACE" || return
+      for p in "$@"; do run_cmd "$bin" plugin add "${p}@${MARKETPLACE}" || failed=1; done ;;
     qoder)
-      run_cmd "$bin" plugins marketplace add "$REPO_URL"
-      for p in "$@"; do run_cmd "$bin" plugins install "${p}@${MARKETPLACE}"; done ;;
+      run_cmd "$bin" plugins marketplace add "$REPO_URL" || return
+      for p in "$@"; do run_cmd "$bin" plugins install "${p}@${MARKETPLACE}" || failed=1; done ;;
     openclaw)
-      for p in "$@"; do run_cmd "$bin" plugins install "$p" --marketplace "$REPO_URL"; done ;;
+      for p in "$@"; do run_cmd "$bin" plugins install "$p" --marketplace "$REPO_URL" || failed=1; done ;;
     qwen-code)
       # native extension install: reuses the .claude-plugin marketplace (skill + MCP), one per cap.
-      for p in "$@"; do run_cmd "$bin" extensions install "${REPO_URL}:${p}" --consent; done ;;
+      for p in "$@"; do run_cmd "$bin" extensions install "${REPO_URL}:${p}" --consent || failed=1; done ;;
     gemini)
       # mcp add per cap + skill install (both over git). No `--` before the uvx args (gemini drops them).
       for p in "$@"; do
         cap=${p#qwen-mm-plugins-}
-        is_skill_only "$cap" || run_cmd "$bin" mcp add -s user "$p" uvx --from "$(cap_spec "$cap")" "$p"
-        run_cmd "$bin" skills install "$REPO_URL" --path "src/capabilities/${cap}/skill" --consent
+        if ! is_skill_only "$cap"; then
+          run_cmd "$bin" mcp add -s user "$p" uvx --from "$(cap_spec "$cap")" "$p" || failed=1
+        fi
+        run_cmd "$bin" skills install "$REPO_URL" --path "src/capabilities/${cap}/skill" --consent || failed=1
       done
       warn "gemini uses Google models only — no external / OpenAI-compatible providers." ;;
     *)
       warn "Unknown harness '$h'. Add marketplace '$REPO_URL' and install ${*}@${MARKETPLACE} with its native verb." ;;
   esac
+  [ "$failed" -eq 0 ]
 }
 
 # _detect_mask <harness> → echoes a 0/1 mask (installed?), one char per MP_ITEMS entry.
@@ -773,19 +810,28 @@ do_install() {
     warn "nothing selected."; return 0
   done
   screen; hr "Install → $harness"
-  install_for "$harness" $SELECTED_PLUGINS
+  if ! install_for "$harness" $SELECTED_PLUGINS; then
+    err "installation incomplete — one or more commands failed"
+    pause
+    return 1
+  fi
   # First install of these caps → self-test once now. --check-system pre-builds each uvx env (so the
   # harness's first tool call isn't a cold multi-minute build) and reports missing system tools right
   # away. Skipped in dry-run (nothing was installed) and for skill-only caps (no MCP env to build).
-  local p cap checked=0
+  local p cap checked=0 check_failed=0
   if [ "$QMP_DRY" = 0 ] && have uvx; then
     for p in $SELECTED_PLUGINS; do
       cap=${p#qwen-mm-plugins-}
       is_skill_only "$cap" && continue
       [ "$checked" = 0 ] && { hr "System check — pre-build uvx env & check system tools"; checked=1; }
       printf '\n  %b— qwen-mm-plugins-%s —%b\n' "$CB" "$cap" "$C0"
-      uvx_cap "$cap" -- --check-system
+      uvx_cap "$cap" -- --check-system || check_failed=1
     done
+    if [ "$check_failed" = 1 ]; then
+      err "installation commands completed, but one or more MCP environments failed to start"
+      pause
+      return 1
+    fi
     printf '\n'; box_open "Installed → $harness"
     for p in $SELECTED_PLUGINS; do box_row "${CG}✓${C0} $p"; done
     box_close
@@ -822,8 +868,9 @@ EOF
   B) Claude Code — skill + MCP server separately:
     # 1) MCP server (uvx installs deps on first run)
     claude mcp add qwen-mm-plugins-core -- \\
-      uvx --from "qwen-mm-plugins[core] @ git+$REPO_URL@$REPO_REF" qwen-mm-plugins-core
+      uvx --from "$(cap_spec core)" qwen-mm-plugins-core
     # 2) skill — symlink from a checkout (or copy the skill dir)
+    mkdir -p ~/.claude/skills
     ln -s /path/to/Qwen-MM-Plugins/src/capabilities/core/skill \\
       ~/.claude/skills/qwen-mm-plugins-core
 
@@ -995,26 +1042,37 @@ do_uninstall() {
 
   screen; hr "Uninstall → $h"
   QMP_DRY=0; confirm "Run the uninstall commands now (otherwise just print)?" y || QMP_DRY=1
-  local p
+  local p plugin_rc removed="" failed=0
   for p in $picks; do
+    plugin_rc=0
     case "$h" in
-      claude)   run_cmd "$bin" plugin  uninstall "qwen-mm-plugins-${p}@${MARKETPLACE}" ;;
-      codex)    run_cmd "$bin" plugin  remove    "qwen-mm-plugins-${p}@${MARKETPLACE}" ;;
-      qoder)    run_cmd "$bin" plugins uninstall "qwen-mm-plugins-${p}@${MARKETPLACE}" ;;
-      openclaw) run_cmd "$bin" plugins uninstall "qwen-mm-plugins-${p}" --force ;;  # --force: openclaw prompts otherwise
-      qwen-code) run_cmd "$bin" extensions uninstall "qwen-mm-plugins-${p}" ;;
-      gemini)   is_skill_only "$p" || run_cmd "$bin" mcp remove -s user "qwen-mm-plugins-${p}"
-                run_cmd "$bin" skills uninstall "qwen-mm-plugins-${p}" ;;
-      *) warn "Unknown harness '$h' — use its native uninstall verb." ;;
+      claude)   run_cmd "$bin" plugin  uninstall "qwen-mm-plugins-${p}@${MARKETPLACE}" || plugin_rc=1 ;;
+      codex)    run_cmd "$bin" plugin  remove    "qwen-mm-plugins-${p}@${MARKETPLACE}" || plugin_rc=1 ;;
+      qoder)    run_cmd "$bin" plugins uninstall "qwen-mm-plugins-${p}@${MARKETPLACE}" || plugin_rc=1 ;;
+      openclaw) run_cmd "$bin" plugins uninstall "qwen-mm-plugins-${p}" --force || plugin_rc=1 ;;  # --force: openclaw prompts otherwise
+      qwen-code) run_cmd "$bin" extensions uninstall "qwen-mm-plugins-${p}" || plugin_rc=1 ;;
+      gemini)   if ! is_skill_only "$p"; then
+                  run_cmd "$bin" mcp remove -s user "qwen-mm-plugins-${p}" || plugin_rc=1
+                fi
+                run_cmd "$bin" skills uninstall "qwen-mm-plugins-${p}" || plugin_rc=1 ;;
+      *) warn "Unknown harness '$h' — use its native uninstall verb."; plugin_rc=1 ;;
     esac
+    if [ "$plugin_rc" = 0 ]; then removed="$removed $p"; else failed=1; fi
   done
   # claude tracks the marketplace separately; drop it only when nothing is left installed
-  [ "$h" = claude ] && [ "$remains" = 0 ] && run_cmd "$bin" plugin marketplace remove "$MARKETPLACE"
+  if [ "$h" = claude ] && [ "$remains" = 0 ] && [ "$failed" = 0 ]; then
+    run_cmd "$bin" plugin marketplace remove "$MARKETPLACE" || failed=1
+  fi
 
-  if [ "$QMP_DRY" = 0 ]; then
+  if [ "$QMP_DRY" = 0 ] && [ -n "$removed" ]; then
     printf '\n'; box_open "Removed → $h"
-    for p in $picks; do box_row "${CD}✗ qwen-mm-plugins-${p}${C0}"; done
+    for p in $removed; do box_row "${CD}✗ qwen-mm-plugins-${p}${C0}"; done
     box_close
+  fi
+
+  if [ "$failed" = 1 ]; then
+    err "uninstall incomplete — one or more commands failed"
+    return 1
   fi
 
   printf '\n'

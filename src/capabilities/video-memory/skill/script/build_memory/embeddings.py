@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import random
 import re
 import sys
@@ -359,7 +360,6 @@ class EmbeddingIndex:
                 print(f"[embed] dense backend failed ({e}); falling back to BM25-only search", file=sys.stderr)
                 self._dense_disabled = True
 
-        n_candidates = len(indices)
         if q_emb is not None:
             normed = self._normalized()
             q_norm = q_emb / (np.linalg.norm(q_emb) or 1)
@@ -376,20 +376,25 @@ class EmbeddingIndex:
 
         sparse_scores = self._sparse_search(query)
         sparse_ranked = sorted(
-            [(i, sparse_scores.get(i, 0.0)) for i in indices],
+            [(i, sparse_scores[i]) for i in indices if sparse_scores.get(i, 0.0) > 0],
             key=lambda x: x[1],
             reverse=True,
         )
         sparse_rank = {idx: rank for rank, (idx, _) in enumerate(sparse_ranked)}
 
+        if not dense_rank and not sparse_rank:
+            return []
+
         rrf_k = 60
         fused = []
         for i in indices:
-            sr = sparse_rank.get(i, n_candidates)
-            rrf_score = 1.0 / (rrf_k + sr)
-            if dense_rank:
-                dr = dense_rank.get(i, n_candidates)
-                rrf_score += 1.0 / (rrf_k + dr)
+            rrf_score = 0.0
+            if i in sparse_rank:
+                rrf_score += 1.0 / (rrf_k + sparse_rank[i])
+            if i in dense_rank:
+                rrf_score += 1.0 / (rrf_k + dense_rank[i])
+            if rrf_score == 0:
+                continue
             fused.append((i, rrf_score, float(cosine_scores[i]) if cosine_scores is not None else 0.0))
         fused.sort(key=lambda x: x[1], reverse=True)
 
@@ -402,14 +407,17 @@ class EmbeddingIndex:
         return results
 
     def save(self, path: str):
-        np.savez(
-            path,
-            embeddings=self.embeddings,
-            nodes=json.dumps(self.nodes, ensure_ascii=False),
-        )
+        tmp = f"{path}.tmp"
+        with open(tmp, "wb") as f:
+            np.savez(
+                f,
+                embeddings=self.embeddings,
+                nodes=json.dumps(self.nodes, ensure_ascii=False),
+            )
+        os.replace(tmp, path)
 
     def load(self, path: str):
-        data = np.load(path, allow_pickle=True)
-        self._set_embeddings(data["embeddings"])
-        self.nodes = json.loads(str(data["nodes"]))
+        with np.load(path, allow_pickle=False) as data:
+            self._set_embeddings(data["embeddings"])
+            self.nodes = json.loads(str(data["nodes"]))
         self._build_sparse_index()

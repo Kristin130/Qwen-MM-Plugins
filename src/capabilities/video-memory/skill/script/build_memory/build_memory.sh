@@ -124,8 +124,13 @@ if [[ -n "$VIDEO_PATH" ]]; then
     # Raise fd limit to avoid "Too many open files"
     ulimit -n 65536 2>/dev/null || true
 
+    if [[ -f "$OUTPUT_DIR/graph_memory.json" && -f "$OUTPUT_DIR/embeddings.npz" ]]; then
+        echo "graph_memory.json and embeddings.npz already exist, skipping"
+        exit 0
+    fi
     if [[ -f "$OUTPUT_DIR/graph_memory.json" ]]; then
-        echo "graph_memory.json already exists, skipping"
+        echo "graph_memory.json exists but embeddings.npz is missing; rebuilding embeddings"
+        python -u -m build_graph "$VIDEO_PATH" --output-dir "$OUTPUT_DIR" --embeddings-only
         exit 0
     fi
 
@@ -316,9 +321,25 @@ if [[ -n "$VIDEO_DIR" ]]; then
             VIDEO_OUT="$OUTPUT_DIR/$VIDEO_STEM"
         fi
 
-        if [[ -f "$VIDEO_OUT/graph_memory.json" ]]; then
-            echo "[skip] $VIDEO_STEM — graph_memory.json already exists"
+        if [[ -f "$VIDEO_OUT/graph_memory.json" && -f "$VIDEO_OUT/embeddings.npz" ]]; then
+            echo "[skip] $VIDEO_STEM — graph_memory.json and embeddings.npz already exist"
             DONE=$((DONE + 1))
+            continue
+        fi
+
+        if [[ -f "$VIDEO_OUT/graph_memory.json" ]]; then
+            echo "[recover] $VIDEO_STEM — rebuilding missing embeddings.npz"
+            if python -u -m build_graph \
+                "$v" \
+                --output-dir "$VIDEO_OUT" \
+                --embeddings-only \
+                2>&1 | tee "$VIDEO_OUT/build_${TIMESTAMP}.log"; then
+                DONE=$((DONE + 1))
+                echo "[done] $VIDEO_STEM"
+            else
+                FAILED=$((FAILED + 1))
+                echo "[FAIL] $VIDEO_STEM"
+            fi
             continue
         fi
 
@@ -345,6 +366,7 @@ if [[ -n "$VIDEO_DIR" ]]; then
     echo "  Done: $DONE  Failed: $FAILED  Total: ${#VIDEOS[@]}"
     echo "  $NODE at $(date '+%Y-%m-%d %H:%M:%S')"
     echo "============================================================"
+    [[ $FAILED -eq 0 ]] || exit 1
     exit 0
 fi
 

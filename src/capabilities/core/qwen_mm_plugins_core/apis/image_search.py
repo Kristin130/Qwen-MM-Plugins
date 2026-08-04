@@ -1,8 +1,8 @@
 """MCP tool: reverse image search via the public Serper (Google Lens) API.
 
-Serper Lens needs a public image URL. To stay OSS-free (external users have no OSS),
-a local frame is uploaded to a free anonymous host (uguu.se) to obtain a temporary
-public URL; an image_path that is already an http(s) URL is used directly.
+Serper Lens needs a public image URL. With explicit caller consent, a local frame is
+uploaded to the third-party public host uguu.se; an image_path that is already an
+http(s) URL is used directly.
 """
 
 from __future__ import annotations
@@ -29,6 +29,13 @@ class ImageSearchArgs(BaseModel):
         max_length=4,
     )
     api_key: Optional[str] = Field(default=None, description="Serper API key (defaults to SERPER_API_KEY).")
+    allow_public_upload: bool = Field(
+        default=False,
+        description=(
+            "Explicit consent to upload a local image (or cropped copy) to the third-party public host uguu.se. "
+            "Required whenever image_path is local or bbox requires re-uploading a public URL."
+        ),
+    )
 
 
 TOOL: dict[str, Any] = {
@@ -36,6 +43,8 @@ TOOL: dict[str, Any] = {
     "description": (
         "Reverse image search using an image file path (or a public image URL). "
         "Returns similar images with their source URLs, titles, and descriptions. "
+        "Local images require allow_public_upload=true and are uploaded to the third-party public host uguu.se; "
+        "their contents leave the machine and become publicly accessible. "
         "Use this (and/or web_search) to CONFIRM any specific identification — model/species/place/person/event — "
         "before you answer; appearance alone is not proof. "
         "Grab the frame to search with save_view (don't run ffmpeg yourself)."
@@ -50,12 +59,25 @@ def _crop_bbox(image_path: str, bbox: list[float]) -> str:
 
     from shared.image import norm_to_pixel
 
-    img = Image.open(image_path)
-    x1, y1, x2, y2 = norm_to_pixel([int(v) for v in bbox], img.width, img.height)
-    cropped = img.crop((x1, y1, x2, y2))
+    with Image.open(image_path) as img:
+        x1, y1, x2, y2 = norm_to_pixel([int(v) for v in bbox], img.width, img.height)
+        cropped = img.crop((x1, y1, x2, y2))
+
+    if cropped.mode in {"RGBA", "LA"} or (cropped.mode == "P" and "transparency" in cropped.info):
+        rgba = cropped.convert("RGBA")
+        rgb = Image.new("RGB", rgba.size, "white")
+        rgb.paste(rgba, mask=rgba.getchannel("A"))
+        cropped = rgb
+    else:
+        cropped = cropped.convert("RGB")
+
     out = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False, prefix="qvl_crop_")
     out.close()
-    cropped.save(out.name, "JPEG", quality=90)
+    try:
+        cropped.save(out.name, "JPEG", quality=90)
+    except Exception:
+        os.unlink(out.name)
+        raise
     return out.name
 
 
@@ -141,6 +163,16 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         docs = _lens_search(image_path, api_key)
         return [{"type": "text", "text": _format_results(docs) + _TIP}]
 
+    if not is_url:
+        if err := require_file(image_path):
+            return err
+
+    if arguments.get("allow_public_upload") is not True:
+        return text_error(
+            "this search requires uploading the image to the third-party public host uguu.se; "
+            "ask the user for consent, then retry with allow_public_upload=true."
+        )
+
     tmps: list[str] = []
     try:
         local = image_path
@@ -149,16 +181,13 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             if not local:
                 return text_error(f"could not download image URL: {image_path}")
             tmps.append(local)
-        else:
-            if err := require_file(local):
-                return err
 
         if want_crop:
             try:
                 local = _crop_bbox(local, bbox)
                 tmps.append(local)
-            except Exception:
-                pass
+            except Exception as exc:
+                return text_error(f"could not crop image: {exc}")
 
         image_url = _upload_public(local)
         if not image_url:

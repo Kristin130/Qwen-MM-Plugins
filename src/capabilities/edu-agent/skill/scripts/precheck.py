@@ -4,13 +4,13 @@ precheck.py — ONE pre-render gate that runs all math-tutorial render checks at
 
 Run this from the project root (the parent of dist/) BEFORE `npx hyperframes render`:
 
-    python3 precheck.py dist
+    python3 "$EDU_SKILL_ROOT/scripts/precheck.py" dist
 
 It runs every check in this scripts/ directory and prints a single consolidated report.
 Exit 0 = all passed (safe to render). Exit 1 = at least one failed (DO NOT render yet).
 
 Self-correction loop (this is the intended workflow):
-    1. run  python3 precheck.py dist
+    1. run  python3 "$EDU_SKILL_ROOT/scripts/precheck.py" dist
     2. if it exits non-zero, READ each "FAIL" block — every line gives file:line and a fix
     3. apply the fixes to the offending composition(s) / index.html
     4. re-run precheck.py and repeat until it prints "ALL CHECKS PASSED"
@@ -145,7 +145,7 @@ def main() -> int:
         return 0
 
     print(f"PRECHECK FAILED — {len(failed)} check(s) need fixing. DO NOT render yet.")
-    print("Fix every file:line listed above, then re-run:  python3 precheck.py", dist)
+    print(f"Fix every file:line listed above, then re-run:  {sys.executable} {Path(__file__).resolve()} {dist}")
     print("Repeat until this prints 'ALL CHECKS PASSED'.")
     return 1
 

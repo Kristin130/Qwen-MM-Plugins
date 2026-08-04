@@ -6,8 +6,8 @@ user's FreeCAD Mod directory, then (2) starts FreeCAD with `FREECAD_RPC_PORT` se
 addon auto-start its XML-RPC server on that port (see FreeCADMCP/InitGui.py). One command, no repo
 checkout and no manual `cp` needed:
 
-    qwen-mm-plugins-freecad --launch-app          # headless (xvfb), detaches once the port is up
-    qwen-mm-plugins-freecad --launch-app --gui    # on a machine with a real display
+    qwen-mm-plugins-freecad --launch-app          # xvfb on Linux; native GUI on macOS/Windows
+    qwen-mm-plugins-freecad --launch-app --gui    # use the real Linux display
 
 Wired via mcp_framework.run_main → this package's launch_app().
 """
@@ -34,6 +34,8 @@ def _vendor_addon() -> Path:
 # manual install hint. Bump as new 1.1.x releases land (see github.com/FreeCAD/FreeCAD/releases).
 _FREECAD_VERSION = "1.1.1"
 _FREECAD_APPIMAGE = f"FreeCAD_{_FREECAD_VERSION}-Linux-x86_64-py311.AppImage"
+# GitHub's digest for the pinned official release asset (also published as a sibling SHA256.txt).
+_FREECAD_LINUX_X64_SHA256 = "e2006138400b2fa85fa2e160e872d00767eb32964e85075830f7e198a3a876e1"
 
 
 def _freecad_download_url() -> str | None:
@@ -75,8 +77,10 @@ def _ensure_freecad() -> str | None:
         file=sys.stderr,
     )
     try:
+        if appimage.is_file() and not applaunch.verify_file_sha256(appimage, _FREECAD_LINUX_X64_SHA256):
+            appimage.unlink()
         if not appimage.is_file():
-            applaunch.download_file(url, appimage)
+            applaunch.download_file(url, appimage, sha256=_FREECAD_LINUX_X64_SHA256)
         appimage.chmod(0o755)
         extract_dir.mkdir(parents=True, exist_ok=True)
         shutil.rmtree(extract_dir / "squashfs-root", ignore_errors=True)  # clear any stale partial
@@ -99,18 +103,89 @@ def _ensure_freecad() -> str | None:
     return None
 
 
-def _mod_dir(explicit: str | None) -> Path:
+def _platform_freecad_binaries() -> list[Path]:
+    """Standard GUI install locations that normally are not added to PATH."""
+    if sys.platform == "darwin":
+        roots = [Path("/Applications"), Path.home() / "Applications"]
+        apps = [app for root in roots for app in sorted(root.glob("FreeCAD*.app"), reverse=True)]
+        return [app / "Contents" / "MacOS" / "FreeCAD" for app in apps]
+    return []
+
+
+def _resolve_freecad_binary(explicit: str | None) -> str | None:
+    """Resolve PATH/explicit installs, then standard macOS app locations."""
+    from shared import applaunch
+
+    found = applaunch.resolve_binary(["freecad", "FreeCAD"], explicit=explicit)
+    if found:
+        return found
+    for candidate in _platform_freecad_binaries():
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _freecad_cmd_candidates(binary: str) -> list[Path]:
+    """Companion FreeCADCmd executables that can report FreeCAD's real user-data directory."""
+    from shared import applaunch
+
+    app = Path(binary)
+    candidates = [app.with_name(name) for name in ("freecadcmd", "FreeCADCmd")]
+    if app.name == "AppRun":
+        candidates.extend([app.parent / "usr/bin/freecadcmd", app.parent / "usr/bin/FreeCADCmd"])
+    for parent in app.parents:
+        if parent.name == "Contents":
+            candidates.extend([parent / "Resources/bin/freecadcmd", parent / "Resources/bin/FreeCADCmd"])
+            break
+    on_path = applaunch.resolve_binary(["freecadcmd", "FreeCADCmd"])
+    if on_path:
+        candidates.append(Path(on_path))
+    return list(dict.fromkeys(candidates))
+
+
+def _user_app_data(binary: str) -> Path | None:
+    """Ask the matching FreeCADCmd for UserAppData; return None when that query is unavailable."""
+    for command in _freecad_cmd_candidates(binary):
+        if not command.is_file():
+            continue
+        try:
+            proc = subprocess.run(
+                [str(command), "--get-config", "UserAppData"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if proc.returncode != 0:
+            continue
+        lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+        if lines:
+            path = Path(lines[-1]).expanduser()
+            if path.is_absolute():
+                return path
+    return None
+
+
+def _mod_dir(explicit: str | None, binary: str | None = None) -> Path:
     """FreeCAD user Mod directory: --mod-dir wins, then $FREECAD_MOD_DIR, then the standard
-    per-user path (~/.local/share/FreeCAD/Mod on Linux 1.x; ~/.FreeCAD/Mod if that's what exists)."""
+    path reported by FreeCADCmd, then a platform-native fallback."""
     if explicit:
         return Path(explicit).expanduser()
     env = get_env("FREECAD_MOD_DIR")
     if env:
         return Path(env).expanduser()
+    if binary and (user_data := _user_app_data(binary)):
+        return user_data / "Mod"
+    if sys.platform == "darwin":
+        root = Path.home() / "Library/Application Support/FreeCAD"
+        return root / "Mod"
     legacy = Path.home() / ".FreeCAD"
-    if legacy.is_dir() and not (Path.home() / ".local/share/FreeCAD").is_dir():
+    data_home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+    current = data_home / "FreeCAD"
+    if legacy.is_dir() and not current.is_dir():
         return legacy / "Mod"
-    return Path.home() / ".local/share/FreeCAD/Mod"
+    return current / "Mod"
 
 
 def _install_addon(mod_dir: Path) -> Path:
@@ -136,7 +211,11 @@ def launch_app(argv: list[str]) -> int:
         default=int(get_env("FREECAD_RPC_PORT", "9875")),
         help="XML-RPC port for the addon server (default: $FREECAD_RPC_PORT or 9875)",
     )
-    ap.add_argument("--gui", action="store_true", help="use the real display (default: headless via xvfb)")
+    ap.add_argument(
+        "--gui",
+        action="store_true",
+        help="use the real Linux display (default: xvfb on Linux; native GUI on macOS/Windows)",
+    )
     ap.add_argument(
         "--foreground", action="store_true", help="block in the foreground instead of detaching once the port is up"
     )
@@ -161,7 +240,7 @@ def launch_app(argv: list[str]) -> int:
         print(f"FreeCAD MCP already listening on {host}:{args.port} — nothing to do.", file=sys.stderr)
         return 0
 
-    binary = applaunch.resolve_binary(["freecad", "FreeCAD"], explicit=args.binary)
+    binary = _resolve_freecad_binary(args.binary)
     if not binary and applaunch.auto_install_enabled():
         binary = _ensure_freecad()
     if not binary:
@@ -174,7 +253,7 @@ def launch_app(argv: list[str]) -> int:
         return 3
 
     try:
-        dst = _install_addon(_mod_dir(args.mod_dir))
+        dst = _install_addon(_mod_dir(args.mod_dir, binary))
     except OSError as e:
         print(f"could not install the FreeCADMCP addon: {e}", file=sys.stderr)
         return 4
@@ -195,8 +274,9 @@ def launch_app(argv: list[str]) -> int:
 
     log = applaunch.default_log_path("freecad")
     proc = applaunch.spawn_detached(cmd, env=env, log_path=log)
+    headless = not args.gui and sys.platform == "linux"
     print(
-        f"Launching FreeCAD (pid {proc.pid}, headless={'no' if args.gui else 'yes'}) on {host}:{args.port}; log: {log}",
+        f"Launching FreeCAD (pid {proc.pid}, headless={'yes' if headless else 'no'}) on {host}:{args.port}; log: {log}",
         file=sys.stderr,
     )
     if applaunch.wait_for_port(host, args.port, timeout=args.wait):

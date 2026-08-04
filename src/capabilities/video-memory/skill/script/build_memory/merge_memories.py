@@ -191,9 +191,9 @@ def merge_directory(video_dir: str, output_dir: str | None = None, skip_embeddin
             continue
 
         try:
-            data = np.load(emb_path, allow_pickle=True)
-            embs = data["embeddings"]
-            nodes_json = json.loads(str(data["nodes"]))
+            with np.load(emb_path, allow_pickle=False) as data:
+                embs = data["embeddings"]
+                nodes_json = json.loads(str(data["nodes"]))
         except Exception as e:
             print(f"  {prefix}: embeddings corrupt ({e}), will rebuild")
             to_rebuild.append((entry, gm_path, emb_path, prefix))

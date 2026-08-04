@@ -62,6 +62,7 @@ def run_pipeline_worker(
     futures: dict = {}  # future -> macro_id
     completed_count = 0
     failed_ids: list[str] = []
+    p1_failed = False
 
     def _submit_new_macros():
         raw = _read_macros_from_checkpoint(macros_path)
@@ -117,6 +118,7 @@ def run_pipeline_worker(
 
         if not _p1_alive(p1_pid) and not os.path.exists(done_marker):
             print("[P2-WORKER] WARNING: P1 process exited without 01_done, draining remaining macros")
+            p1_failed = True
             _submit_new_macros()
             break
 
@@ -141,6 +143,9 @@ def run_pipeline_worker(
 
     if failed_ids:
         print(f"[P2-WORKER] WARNING: {len(failed_ids)} macros failed: {failed_ids}")
+
+    if p1_failed:
+        raise RuntimeError("Phase 1 exited without 01_done")
 
     Path(os.path.join(output_dir, "02_done")).touch()
     print(f"[P2-WORKER] Complete: {completed_count} macros processed, {len(failed_ids)} failed")

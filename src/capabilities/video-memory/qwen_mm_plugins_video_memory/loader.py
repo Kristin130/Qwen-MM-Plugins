@@ -17,17 +17,30 @@ log = logging.getLogger("qwen-mm-plugins-video-memory")
 
 # Env is read at CALL time (not import) via the shared accessor, so a value set after
 # import still applies and video-memory follows the same single-accessor convention.
-# Cache is keyed by memory dir → (graph_memory.json mtime, toolkit); a rebuild (atomic
-# os.replace bumps the mtime) is picked up instead of serving the stale build forever.
-_toolkits: dict[str, tuple[float, MemoryToolkit]] = {}
+# Cache entries include every input that changes the loaded toolkit. Replacing the graph or
+# embeddings, selecting a different path, or changing the cutoff invalidates the entry.
+_PathStamp = tuple[str, int, int]
+_CacheSignature = tuple[_PathStamp, _PathStamp, float | None]
+_toolkits: dict[str, tuple[_CacheSignature, MemoryToolkit]] = {}
 _toolkits_lock = threading.Lock()
 
 
-def _graph_mtime(graph_path: str) -> float:
+def _path_stamp(path: str) -> _PathStamp:
+    path = os.path.realpath(path)
     try:
-        return os.stat(graph_path).st_mtime
+        stat = os.stat(path)
+        return path, stat.st_mtime_ns, stat.st_size
     except OSError:
-        return 0.0
+        return path, 0, 0
+
+
+def _resolve_embed_path(memory_dir: str, configured: str | None) -> str:
+    if configured:
+        configured = os.path.realpath(configured)
+        if os.path.exists(configured):
+            return configured
+    default = os.path.realpath(os.path.join(memory_dir, "embeddings.npz"))
+    return default if os.path.exists(default) or not configured else configured
 
 
 def get_toolkit(video_path: str | None = None) -> MemoryToolkit:
@@ -67,16 +80,20 @@ def get_toolkit(video_path: str | None = None) -> MemoryToolkit:
         )
 
     memory_dir = os.path.realpath(memory_dir)
-    mtime = _graph_mtime(graph_path)
+    graph_path = os.path.realpath(graph_path)
+    embed_path = _resolve_embed_path(memory_dir, get_env("EMBEDDINGS_PATH") or None)
+    cutoff = get_env("CUTOFF_SEC") or None
+    cutoff_value = float(cutoff) if cutoff is not None else None
+    signature = (_path_stamp(graph_path), _path_stamp(embed_path), cutoff_value)
     cached = _toolkits.get(memory_dir)
-    if cached is not None and cached[0] == mtime:
+    if cached is not None and cached[0] == signature:
         return cached[1]
 
     with _toolkits_lock:
         cached = _toolkits.get(memory_dir)
-        if cached is not None and cached[0] == mtime:
+        if cached is not None and cached[0] == signature:
             return cached[1]
-        return _load_toolkit_into(memory_dir, graph_path, mtime)
+        return _load_toolkit_into(memory_dir, graph_path, embed_path, cutoff_value, signature)
 
 
 def load_toolkit(
@@ -122,7 +139,7 @@ def load_toolkit(
         log.warning("No embeddings found, search_nodes will be unavailable")
 
     toolkit = MemoryToolkit(memory, index, egolife_mode=(ts.mode_name == "egolife"))
-    if cutoff:
+    if cutoff is not None:
         toolkit.set_cutoff(float(cutoff))
         log.info("Time cutoff set to %s seconds", cutoff)
 
@@ -130,12 +147,16 @@ def load_toolkit(
     return toolkit
 
 
-def _load_toolkit_into(memory_dir: str, graph_path: str, mtime: float) -> MemoryToolkit:
+def _load_toolkit_into(
+    memory_dir: str,
+    graph_path: str,
+    embed_path: str,
+    cutoff: float | None,
+    signature: _CacheSignature,
+) -> MemoryToolkit:
     """Load (via the shared `load_toolkit`) and cache the toolkit for `memory_dir`."""
-    toolkit = load_toolkit(
-        memory_dir, graph_path, embed_path=get_env("EMBEDDINGS_PATH") or None, cutoff=get_env("CUTOFF_SEC") or None
-    )
-    _toolkits[memory_dir] = (mtime, toolkit)
+    toolkit = load_toolkit(memory_dir, graph_path, embed_path=embed_path, cutoff=cutoff)
+    _toolkits[memory_dir] = (signature, toolkit)
     return toolkit
 
 

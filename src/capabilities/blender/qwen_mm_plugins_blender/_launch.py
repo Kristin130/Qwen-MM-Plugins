@@ -4,8 +4,8 @@ addon, so the thin-client tools have a session to connect to.
 The addon (`vendor/addon.py` + `vendor/blender_startup.py`) ships inside this package, so a
 plugin-install user with no repo checkout can start the other half of the pipeline with one command:
 
-    qwen-mm-plugins-blender --launch-app          # headless (xvfb), detaches once the port is up
-    qwen-mm-plugins-blender --launch-app --gui    # on a machine with a real display
+    qwen-mm-plugins-blender --launch-app          # xvfb on Linux; native GUI on macOS/Windows
+    qwen-mm-plugins-blender --launch-app --gui    # use the real Linux display
 
 Wired via mcp_framework.run_main → this package's launch_app().
 """
@@ -24,12 +24,22 @@ def _vendor_dir() -> Path:
     return Path(__file__).resolve().parent / "vendor"
 
 
+def _binary_candidates() -> list[str]:
+    candidates = ["blender"]
+    if sys.platform == "darwin":
+        candidates.append("/Applications/Blender.app/Contents/MacOS/Blender")
+    return candidates
+
+
 # Pinned to the 4.2 LTS line the model trained against. The official Linux tarball is relocatable
 # (extract anywhere, run in place — no root), so a plugin-install user with no Blender can get the
 # exact trained version auto-provisioned. Auto-download is Linux-x86_64 only; elsewhere fall back to
 # the manual install hint. Bump the patch as new 4.2.x releases land (see download.blender.org).
 _BLENDER_VERSION = "4.2.23"
 _BLENDER_SERIES = "4.2"
+# Published by Blender alongside the pinned release:
+# https://download.blender.org/release/Blender4.2/blender-4.2.23.sha256
+_BLENDER_LINUX_X64_SHA256 = "bea0eb3146be13eae6225409a117b215184f41b7f79e799f97cb3abb8f6dc404"
 
 
 def _blender_download_url() -> str | None:
@@ -60,14 +70,16 @@ def _ensure_blender() -> str | None:
         file=sys.stderr,
     )
     try:
+        if tarball.is_file() and not applaunch.verify_file_sha256(tarball, _BLENDER_LINUX_X64_SHA256):
+            tarball.unlink()
         if not tarball.is_file():
-            applaunch.download_file(url, tarball)
+            applaunch.download_file(url, tarball, sha256=_BLENDER_LINUX_X64_SHA256)
         import tarfile
 
         with tarfile.open(tarball) as tf:
             try:
-                tf.extractall(apps, filter="data")  # py3.12+: refuse path traversal
-            except TypeError:
+                tf.extractall(apps, filter="data")
+            except TypeError:  # Python 3.10/3.11
                 tf.extractall(apps)
     except Exception as e:
         print(
@@ -98,7 +110,11 @@ def launch_app(argv: list[str]) -> int:
         default=int(get_env("BLENDER_PORT", "9876")),
         help="TCP port for the addon server (default: $BLENDER_PORT or 9876)",
     )
-    ap.add_argument("--gui", action="store_true", help="use the real display (default: headless via xvfb)")
+    ap.add_argument(
+        "--gui",
+        action="store_true",
+        help="use the real Linux display (default: xvfb on Linux; native GUI on macOS/Windows)",
+    )
     ap.add_argument(
         "--foreground", action="store_true", help="block in the foreground instead of detaching once the port is up"
     )
@@ -117,7 +133,7 @@ def launch_app(argv: list[str]) -> int:
         print(f"Blender MCP already listening on {host}:{args.port} — nothing to do.", file=sys.stderr)
         return 0
 
-    binary = applaunch.resolve_binary(["blender"], explicit=args.binary)
+    binary = applaunch.resolve_binary(_binary_candidates(), explicit=args.binary)
     if not binary and applaunch.auto_install_enabled():
         binary = _ensure_blender()
     if not binary:
@@ -151,8 +167,9 @@ def launch_app(argv: list[str]) -> int:
 
     log = applaunch.default_log_path("blender")
     proc = applaunch.spawn_detached(cmd, env=env, log_path=log)
+    headless = not args.gui and sys.platform == "linux"
     print(
-        f"Launching Blender (pid {proc.pid}, headless={'no' if args.gui else 'yes'}) on {host}:{args.port}; log: {log}",
+        f"Launching Blender (pid {proc.pid}, headless={'yes' if headless else 'no'}) on {host}:{args.port}; log: {log}",
         file=sys.stderr,
     )
     if applaunch.wait_for_port(host, args.port, timeout=args.wait):

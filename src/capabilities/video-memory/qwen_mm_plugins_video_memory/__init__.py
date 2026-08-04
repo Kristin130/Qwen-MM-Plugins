@@ -11,12 +11,12 @@ log = logging.getLogger("qwen-mm-plugins-video-memory")
 
 SPECS, get_handler, list_tools = build_registry(__name__, ["tools"])
 
-# ffmpeg only needed to *build* a memory, not to query — startup:False so the server doesn't nag.
+# ffmpeg/ffprobe are only needed to *build* a memory, not to query — startup:False avoids nagging.
 SYSTEM_DEPS = [
     {
-        "label": "build memory: frame extraction (ffmpeg)",
+        "label": "build memory: video probing and frame extraction",
         "extra": "video-memory",
-        "tools": ["ffmpeg"],
+        "tools": ["ffmpeg", "ffprobe"],
         "hint": "apt install ffmpeg   |   brew install ffmpeg",
         "startup": False,
     },

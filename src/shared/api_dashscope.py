@@ -105,7 +105,7 @@ def retry_call(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
             attempts=_SERVICE_MAX_RETRIES,
             base_backoff=_SERVICE_RETRY_BACKOFF,
             mode="linear",
-            should_retry=lambda e: not isinstance(e, ThrottlingError),
+            should_retry=_service_retryable,
             on_exhausted="raise",
             log=log,
         )
@@ -120,6 +120,17 @@ def retry_call(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         on_exhausted="raise",
         log=log,
     )
+
+
+def _service_retryable(error: Exception) -> bool:
+    """Retry transient failures, but fail fast on known permanent request/auth errors."""
+    if isinstance(error, ThrottlingError):
+        return False
+    response = getattr(error, "response", None)
+    status = getattr(response, "status_code", None)
+    if isinstance(status, int):
+        return status in (408, 429) or status >= 500
+    return True
 
 
 def submit_dashscope_async(path: str, payload: dict, api_key: str, *, timeout: int = 30) -> tuple[str | None, dict]:
@@ -171,16 +182,19 @@ def poll_dashscope_task(task_id: str, api_key: str, *, base_url: str, interval: 
     import requests
 
     headers = {"Authorization": f"Bearer {api_key}"}
-    start = time.time()
+    deadline = time.monotonic() + max(timeout, 0)
 
     def _poll() -> dict:
         r = requests.get(f"{base_url}/tasks/{task_id}", headers=headers, timeout=30)
         r.raise_for_status()  # retry transient 5xx on an already-billed job instead of aborting
         return r.json()
 
-    while time.time() - start < timeout:
+    while time.monotonic() < deadline:
         resp = retry_call(_poll)
         if resp.get("output", {}).get("task_status") in ("SUCCEEDED", "FAILED"):
             return resp
-        time.sleep(interval)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(max(interval, 0), remaining))
     return {"output": {"task_status": "TIMEOUT", "task_id": task_id}}

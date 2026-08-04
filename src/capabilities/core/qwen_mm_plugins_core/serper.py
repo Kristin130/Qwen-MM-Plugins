@@ -51,4 +51,20 @@ def post_serper(
         resp.raise_for_status()
         return resp.json()
 
-    return retry_call(_post, attempts=max_retries, mode="exp", cap=_BACKOFF_CAP_SECONDS, on_exhausted="none", log=log)
+    def _retryable(error: Exception) -> bool:
+        response = getattr(error, "response", None)
+        status = getattr(response, "status_code", None)
+        return not isinstance(status, int) or status in (408, 429) or status >= 500
+
+    try:
+        return retry_call(
+            _post,
+            attempts=max_retries,
+            mode="exp",
+            cap=_BACKOFF_CAP_SECONDS,
+            should_retry=_retryable,
+            on_exhausted="none",
+            log=log,
+        )
+    except requests.HTTPError:
+        return None

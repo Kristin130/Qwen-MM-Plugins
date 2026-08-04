@@ -52,18 +52,18 @@ class WanT2vArgs(BaseModel):
     size: str = Field(
         default="1280*720",
         description=(
-            "Output video resolution (width*height). "
-            "Options: '1280*720' (16:9 landscape), '720*1280' (9:16 portrait), "
-            "'1024*1024' (square), '960*960', '1920*1080' (full HD). "
+            "Video size preset. For text_to_video this selects the output size; for image-to-video "
+            "it selects only the resolution tier, while aspect ratio and exact dimensions follow the first frame. "
+            "Options: '1280*720' (16:9 landscape), "
+            "'720*1280' (9:16 portrait), '960*960' (square), and '1920*1080' (full HD). "
+            "The legacy '1024*1024' value is accepted and maps to Wan 2.7's 960*960 output. "
             "Default: '1280*720'."
         ),
     )
     duration: int = Field(
         default=5,
         description=(
-            "Video duration in seconds. "
-            "Supported values depend on model, typically 4-10 seconds. "
-            "Default: 5. Cost scales linearly with duration."
+            "Video duration in seconds. Wan 2.7 accepts 2-15 seconds. Default: 5. Cost scales linearly with duration."
         ),
     )
     negative_prompt: str = Field(
@@ -107,6 +107,17 @@ TOOL: dict[str, Any] = {
 }
 
 
+# Keep the public MCP `size` argument stable while translating it to Wan 2.7's
+# resolution/ratio request fields. The third tuple item is the T2V output size.
+_WAN27_SIZE_PRESETS = {
+    "1280*720": ("720P", "16:9", "1280*720"),
+    "720*1280": ("720P", "9:16", "720*1280"),
+    "960*960": ("720P", "1:1", "960*960"),
+    "1024*1024": ("720P", "1:1", "960*960"),
+    "1920*1080": ("1080P", "16:9", "1920*1080"),
+}
+
+
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     prompt = arguments.get("prompt", "")
     if not prompt:
@@ -116,6 +127,11 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     first_frame_url = arguments.get("first_frame_url")
     last_frame_url = arguments.get("last_frame_url")
     size = arguments.get("size", "1280*720")
+    preset = _WAN27_SIZE_PRESETS.get(size)
+    if preset is None:
+        supported = ", ".join(_WAN27_SIZE_PRESETS)
+        return text_error(f"unsupported size '{size}'. Use one of: {supported}")
+    resolution, ratio, output_size = preset
     duration = int(arguments.get("duration", 5))
     negative_prompt = arguments.get("negative_prompt", "")
     prompt_extend = arguments.get("prompt_extend", True)
@@ -149,7 +165,8 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
                 api_key=api_key,
                 model=model,
                 prompt=prompt,
-                size=size,
+                resolution=resolution,
+                ratio=ratio,
                 duration=duration,
                 negative_prompt=negative_prompt,
                 prompt_extend=prompt_extend,
@@ -165,7 +182,7 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
                 model=model,
                 prompt=prompt,
                 media=media,
-                size=size,
+                resolution=resolution,
                 duration=duration,
                 negative_prompt=negative_prompt,
                 prompt_extend=prompt_extend,
@@ -184,7 +201,7 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
                 model=model,
                 prompt=prompt,
                 media=media,
-                size=size,
+                resolution=resolution,
                 duration=duration,
                 negative_prompt=negative_prompt,
                 prompt_extend=prompt_extend,
@@ -209,10 +226,13 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             f"**Mode**: {mode}",
             f"**Model**: {model}",
             f"**Video URL**: {video_url}",
-            f"**Size**: {size}",
             f"**Duration**: {duration}s",
             f"**Seed**: {seed}",
         ]
+        if mode == "text_to_video":
+            lines.insert(3, f"**Size**: {output_size}")
+        else:
+            lines.insert(3, f"**Resolution tier**: {resolution} (aspect ratio follows first frame)")
         if first_frame_url:
             lines.append(f"**First frame**: {first_frame_url}")
         if last_frame_url:

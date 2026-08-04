@@ -477,11 +477,11 @@ def main() -> int:
     note_lines = []
 
     if video is None:
-        note_lines.append("no rendered video (output.mp4) found — 只做了 composition 级几何检查。")
+        note_lines.append("skipped video check — no rendered video (output.mp4) found.")
     elif not which("ffmpeg"):
-        note_lines.append("ffmpeg not found — 无法抽取成片帧核验。")
+        note_lines.append("skipped video check — ffmpeg not found，无法抽取成片帧核验。")
     elif not timing:
-        note_lines.append("could not read scene timing from index.html / render_plan.json — 未做成片核验。")
+        note_lines.append("skipped video check — could not read scene timing from index.html / render_plan.json。")
     else:
         for r in results:
             # Assert only SOLID, wide-enough, position-invariant strokes: those unambiguously reveal
@@ -501,7 +501,7 @@ def main() -> int:
             ts = start + dur * FRAC2
             frame = extract_frame(video, ts)
             if frame is None:
-                note_lines.append(f"{r['file']}: 抽帧失败 (t≈{ts:.2f}s)，跳过。")
+                note_lines.append(f"skipped {r['file']} — 抽帧失败 (t≈{ts:.2f}s)。")
                 continue
             scenes_checked += 1
             present, missing = [], []
@@ -522,8 +522,8 @@ def main() -> int:
                         f"— 渲染器很可能没加载 GSAP，JS 生成的路径 d 未被绘制。")
             elif missing and not present:
                 note_lines.append(
-                    f"{r['file']}: {len(missing)} 条线未命中且无可对齐锚点 — 可能整幅图缺失(见空白帧检测) "
-                    f"或坐标未对齐，本闸门跳过该场景以避免误报。")
+                    f"skipped {r['file']} — {len(missing)} 条线未命中且无可对齐锚点；"
+                    f"可能整幅图缺失(见空白帧检测)或坐标未对齐。")
 
     all_fails = comp_fails + video_fails
     if all_fails:

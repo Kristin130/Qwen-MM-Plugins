@@ -36,6 +36,41 @@ def _ensure_egl():
         _egl_configured = True
 
 
+def _render_pyrender_subprocess(path: str, max_pages: int) -> list:
+    """Render with pyrender in a fresh interpreter and load its output images."""
+    from PIL import Image
+
+    tmp_dir = tempfile.mkdtemp(prefix="pyrender_render_")
+    worker = os.path.join(os.path.dirname(__file__), "_pyrender_worker.py")
+
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                worker,
+                os.path.abspath(path),
+                tmp_dir,
+                str(max_pages),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode != 0:
+            error_tail = (result.stderr or result.stdout or "")[-500:]
+            raise RuntimeError(f"pyrender subprocess exited with code {result.returncode}: {error_tail}")
+
+        images = []
+        for index in range(len(VIEWS[:max_pages])):
+            output_path = os.path.join(tmp_dir, f"view_{index}.png")
+            with Image.open(output_path) as image:
+                images.append(image.copy())
+        return images
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 def _load_scene(path: str):
     """Load a 3D file and return (meshes, total_verts, total_faces)."""
     import trimesh
@@ -379,22 +414,13 @@ def render(path: str, **opts: Any) -> list:
     except ImportError:
         raise RuntimeError('Missing dependency — install with: pip install "qwen-mm-plugins[viz]"')
 
-    meshes, total_verts, total_faces = _load_scene(path)
-    has_materials = _has_real_materials(meshes)
-
     try:
-        images = _render_pyrender(
-            meshes,
-            path,
-            has_materials,
-            total_verts,
-            total_faces,
-            max_pages,
-        )
+        images = _render_pyrender_subprocess(path, max_pages)
         return _images_to_content(images, path, budget)
     except Exception as e:
-        log.info("model3d: pyrender backend failed (%s); falling back to matplotlib", e)
+        log.info("model3d: pyrender subprocess failed (%s); falling back to matplotlib", e)
 
+    meshes, total_verts, total_faces = _load_scene(path)
     images = _render_matplotlib(meshes, path, total_verts, total_faces, max_pages)
     return _images_to_content(images, path, budget)
 

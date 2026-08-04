@@ -13,6 +13,7 @@ from __future__ import annotations
 import glob
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 from env_config import get_env
@@ -30,9 +31,15 @@ def find_chrome() -> str | None:
         g = sorted(glob.glob(pat))
         if g:
             return g[-1]
-    for cand in ("/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"):
+    system = ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"]
+    if sys.platform == "darwin":
+        system = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ]
+    for cand in system:
         if Path(cand).is_file():
-            return cand
+            return str(cand)
     return None
 
 
