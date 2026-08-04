@@ -42,8 +42,7 @@ A capability = a **skill** (so the model knows the tools exist) + an optional **
 One script handles **install · configure · verify · uninstall** across every harness it supports (Claude Code · Codex · Qoder · OpenClaw · Qwen Code · Gemini CLI). It drives each harness's own native install under the hood — nothing reinvented — and writes a single shared config file (`~/.qwen-mm-plugins/config`) that GUI and terminal harnesses both read, so you set things up once:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install.sh > install.sh
-bash install.sh
+curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install.sh | bash
 ```
 
 Or run one action at a time — `bash install.sh install` / `configure` / `verify` / `uninstall` (what `configure` and `verify` do is detailed under [Configuration](#-configuration) and [Dependencies](#-dependencies)).
@@ -123,16 +122,9 @@ See the [full tool catalog](docs/en/capabilities.md) for every tool and per-capa
 
 ## 🧪 Development
 
-```bash
-python3 -m pytest tests/              # cases missing optional deps are auto-skipped
-ruff format . && ruff check . --fix
-```
-
-**Local development / debugging**: see [`docs/en/local_development.md`](docs/en/local_development.md) — editable install (test straight from Python), running a server from source, debugging a server inside a harness / exercising the whole plugin chain; with the helper scripts `scripts/dev-install.sh` and `scripts/dev-plugin.sh`.
-
-**Adding a capability / tool**: see [`docs/en/how_to_add_new_capability.md`](docs/en/how_to_add_new_capability.md) — just copy and edit the template [`src/capabilities/example/`](src/capabilities/example/).
-
-**Adding tests for a new plugin**: see [`docs/en/testing.md`](docs/en/testing.md) — an overview of the test layout + a checklist of which layers a new plugin should cover.
+Development setup, contribution guidelines, and verification commands are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Detailed guides: [local development](docs/en/local_development.md)
+· [adding a capability](docs/en/how_to_add_new_capability.md) · [testing](docs/en/testing.md).
 
 ## 📄 License
 

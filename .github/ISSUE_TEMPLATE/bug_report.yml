@@ -7,6 +7,30 @@ body:
       value: |
         Thanks for helping improve Qwen-MM-Plugins. For security vulnerabilities, follow the [security policy](https://github.com/QwenLM/Qwen-MM-Plugins/security/policy) instead of opening a public issue.
 
+  - type: input
+    id: harness
+    attributes:
+      label: Agent harness
+      description: For example, Claude Code, Codex, Qwen Code, Gemini CLI, or direct MCP.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest input and sequence that consistently triggers the problem.
+    validations:
+      required: true
+
   - type: dropdown
     id: capability
     attributes:
@@ -20,63 +44,22 @@ body:
         - edu-agent
         - installer or packaging
         - other
-    validations:
-      required: true
-
-  - type: input
-    id: harness
-    attributes:
-      label: Agent harness
-      description: For example, Claude Code, Codex, Qwen Code, Gemini CLI, or direct MCP.
-    validations:
-      required: true
 
   - type: input
     id: version
     attributes:
       label: Version or commit
       placeholder: Release, commit SHA, or installation date
-    validations:
-      required: true
 
   - type: textarea
     id: environment
     attributes:
       label: Environment
       description: Include the OS, architecture, Python version, and relevant system tools.
-    validations:
-      required: true
 
   - type: textarea
-    id: reproduce
+    id: logs
     attributes:
-      label: Steps to reproduce
-      description: Provide the smallest input and sequence that consistently triggers the problem.
-    validations:
-      required: true
-
-  - type: textarea
-    id: expected
-    attributes:
-      label: Expected behavior
-    validations:
-      required: true
-
-  - type: textarea
-    id: actual
-    attributes:
-      label: Actual behavior and logs
+      label: Additional context and logs
       description: Include relevant logs or `--check-system` output. Remove API keys, credentials, private paths, and sensitive media.
       render: shell
-    validations:
-      required: true
-
-  - type: checkboxes
-    id: checks
-    attributes:
-      label: Checklist
-      options:
-        - label: I searched for an existing issue describing this problem.
-          required: true
-        - label: I removed secrets and sensitive data from this report.
-          required: true

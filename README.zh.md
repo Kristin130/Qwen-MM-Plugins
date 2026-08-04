@@ -122,16 +122,9 @@ bash install.sh configure     # 交互式：API key、端点、目录、OSS、�
 
 ## 🧪 开发
 
-```bash
-python3 -m pytest tests/              # 缺可选依赖的用例自动 skip
-ruff format . && ruff check . --fix
-```
-
-**本地调试 / 开发**：见 [`docs/zh/local_development.md`](docs/zh/local_development.md) —— editable 安装（直接写 python 测）、从源码起 server、在 harness 里调 server / 调整条插件链路；配套脚本 `scripts/dev-install.sh`、`scripts/dev-plugin.sh`。
-
-**加新能力 / 新工具**：见 [`docs/zh/how_to_add_new_capability.md`](docs/zh/how_to_add_new_capability.md) —— 复制模板 [`src/capabilities/example/`](src/capabilities/example/) 改即可。
-
-**给新插件配测试**：见 [`docs/zh/testing.md`](docs/zh/testing.md) —— 测试逻辑总览 + 新插件该写哪几层测试的清单。
+开发环境、贡献规范和检查命令见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。详细指南：
+[本地调试](docs/zh/local_development.md) · [添加能力](docs/zh/how_to_add_new_capability.md) ·
+[测试](docs/zh/testing.md)。
 
 ## 📄 License
 
