@@ -2,7 +2,7 @@
 
 **English** · [中文](README.zh.md)
 
-Native multimodal-understanding plugins for Qwen models, working with any harness that supports Plugins / Skills / MCP.
+Native multimodal plugins for Qwen models. Make any agent harness multimodal-native.
 
 ## Contents
 
