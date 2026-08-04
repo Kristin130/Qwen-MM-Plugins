@@ -45,7 +45,8 @@ If the user wants a *narrated MP4*, use the normal video pipeline instead.
 ## Asset setup (copy from this skill — same sources as the video pipeline)
 
 ```bash
-APP=<app-dir>; SK=<path-to>/skills/math-tutorial
+EDU_SKILL_ROOT="<absolute directory containing qwen-mm-plugins-edu-agent/SKILL.md>"
+APP=<app-dir>; SK="$EDU_SKILL_ROOT"
 mkdir -p "$APP/katex" "$APP/assets/fonts"
 cp "$SK/assets/katex/katex.min.js" "$SK/assets/katex/katex.min.css" "$APP/katex/"
 cp -r "$SK/assets/katex/fonts" "$APP/katex/fonts"

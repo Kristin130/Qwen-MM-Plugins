@@ -23,31 +23,13 @@ Copy `narration.wav` and `transcript.json` into `dist/`. All subsequent file ope
 **Copy the self-hosted offline fonts and KaTeX shipped with this skill into `dist/` (REQUIRED — without this, Chinese and equations render as tofu boxes □ in the air-gapped sandbox):**
 
 ```bash
+EDU_SKILL_ROOT="<absolute directory containing qwen-mm-plugins-edu-agent/SKILL.md>"
 mkdir -p dist/assets/fonts dist/katex dist/gsap
 
-# Font/asset source lookup order:
-# 1. Skill assets directory (relative to skill install location)
-# 2. Claude Code skill install directory
-# 3. Docker image pre-installed path
-# 4. If none found, STOP and report error — do NOT download from Google Fonts
-
-SKILL_ASSETS=""
-for candidate in \
-  "skills/math-tutorial/assets" \
-  "$HOME/.claude/skills/math-tutorial/assets" \
-  "$HOME/.cache/assets"; do
-  if [ -f "$candidate/fonts/NotoSansSC-Bold.woff2" ]; then
-    SKILL_ASSETS="$candidate"
-    break
-  fi
-done
-
-if [ -z "$SKILL_ASSETS" ]; then
-  echo "ERROR: Skill assets not found. Checked:"
-  echo "  - skills/math-tutorial/assets"
-  echo "  - ~/.claude/skills/math-tutorial/assets"
-  echo "  - ~/.cache/assets (Docker: /root/.cache/assets)"
-  echo "Copy the skill's assets/ directory to one of these locations."
+# EDU_SKILL_ROOT is the absolute directory containing this skill's SKILL.md.
+SKILL_ASSETS="$EDU_SKILL_ROOT/assets"
+if [ ! -f "$SKILL_ASSETS/fonts/NotoSansSC-Bold.woff2" ]; then
+  echo "ERROR: Skill assets not found under EDU_SKILL_ROOT: $SKILL_ASSETS"
   exit 1
 fi
 
@@ -123,7 +105,8 @@ If any font file is missing, the skill assets were not copied correctly. **Do NO
 Copy the texture background image from the skill's assets into the project:
 
 ```bash
-cp ~/.claude/skills/math-tutorial/assets/backgrounds/bg-texture.jpg dist/bg-texture.jpg
+EDU_SKILL_ROOT="<absolute directory containing qwen-mm-plugins-edu-agent/SKILL.md>"
+cp "$EDU_SKILL_ROOT/assets/backgrounds/bg-texture.jpg" dist/bg-texture.jpg
 ```
 
 Every scene composition references this image as `../bg-texture.jpg` (relative to `dist/compositions/`). The image is rendered as a blurred full-bleed background layer beneath the aurora orbs. See design-system.md "Background Treatment" for the full layer stack, `.bg-texture` CSS, and per-scene aurora palette guide.
@@ -341,7 +324,8 @@ For geometric symbols in non-formula context, use Chinese: "角" (∠), "三角�
 The KaTeX assets were copied into `dist/katex/` in the Prerequisites step (no network). If you skipped it, copy them now:
 
 ```bash
-mkdir -p dist/katex && cp -r skills/math-tutorial/assets/katex/. dist/katex/
+EDU_SKILL_ROOT="<absolute directory containing qwen-mm-plugins-edu-agent/SKILL.md>"
+mkdir -p dist/katex && cp -r "$EDU_SKILL_ROOT/assets/katex/." dist/katex/
 ```
 
 ### Step 2: Inline KaTeX CSS into every composition
@@ -403,7 +387,7 @@ katex.render("x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", element, { displayMode: 
 >
 > Other common victims: `\frac` (`\f` = form-feed → `rac`), `\times` (`\t` = tab → `imes`), `\neq` (`\n` = newline → `eq`). **Every `\` in a JS string must be `\\`.** This only applies to JS strings — HTML `data-tex="\dfrac{1}{2}"` is correct with single `\`.
 >
-> **After building all compositions**, run `python3 scripts/check_katex_escaping.py dist` and fix every reported line before proceeding.
+> **After building all compositions**, run `python3 "$EDU_SKILL_ROOT/scripts/check_katex_escaping.py" dist` and fix every reported line before proceeding.
 
 KaTeX renders synchronously — no async wait needed. Place the render call before timeline construction. Always use `output: "html"` to avoid MathML fallback text appearing as duplicated content.
 
@@ -870,11 +854,11 @@ Before finalizing any Geometry Canvas scene, verify ALL of the following:
 - [ ] Right angle marks are L-shaped open squares (not V-shapes, arcs, or closed squares)
 - [ ] Right angle mark edges aligned with actual line direction unit vectors
 - [ ] Coordinate table written as `<!-- GEOMETRY VERIFICATION -->` block above the SVG with POINTS and ASSERTs
-- [ ] `python3 scripts/check_geometry_verification.py dist` exits 0
+- [ ] `python3 "$EDU_SKILL_ROOT/scripts/check_geometry_verification.py" dist` exits 0
 - [ ] Triangle fill regions use the correct computed vertex coordinates
 - [ ] Labels positioned near their corresponding points (offset 15-25 units to avoid overlap)
-- [ ] No two SVG `<text>` labels overlap each other — never stack fulcrum/center + arm labels on one line (center above, arms below, anchored outward); stagger point labels sharing an axis; don't bury tick numbers. `python3 scripts/check_svg_label_overlap.py dist` exits 0 (SKILL.md Rule #28)
-- [ ] No label overlaps the DRAWING (文字不压线不压点) — every letter is offset OUTWARD ~18–24u from its point/line/curve, never on a stroke/axis/vertex dot; axis-point labels sit just below/above the axis, origin `O` in a quadrant, labels near a vertical/symmetry line anchored to clear it. `python3 scripts/check_svg_label_on_figure.py dist` exits 0 (SKILL.md Rule #30)
+- [ ] No two SVG `<text>` labels overlap each other — never stack fulcrum/center + arm labels on one line (center above, arms below, anchored outward); stagger point labels sharing an axis; don't bury tick numbers. `python3 "$EDU_SKILL_ROOT/scripts/check_svg_label_overlap.py" dist` exits 0 (SKILL.md Rule #28)
+- [ ] No label overlaps the DRAWING (文字不压线不压点) — every letter is offset OUTWARD ~18–24u from its point/line/curve, never on a stroke/axis/vertex dot; axis-point labels sit just below/above the axis, origin `O` in a quadrant, labels near a vertical/symmetry line anchored to clear it. `python3 "$EDU_SKILL_ROOT/scripts/check_svg_label_on_figure.py" dist` exits 0 (SKILL.md Rule #30)
 
 ## Build Order
 
@@ -899,13 +883,14 @@ For each scene in `STORYBOARD.md`:
 After building ALL compositions, you MUST run the automated validation:
 
 ```bash
-python3 scripts/precheck.py dist
+EDU_SKILL_ROOT="<absolute directory containing qwen-mm-plugins-edu-agent/SKILL.md>"
+python3 "$EDU_SKILL_ROOT/scripts/precheck.py" dist
 ```
 
 **If the output does NOT contain `ALL CHECKS PASSED`:**
 1. Read each `FAIL` line — it tells you the exact file, problem, and fix
 2. Apply the fix
-3. Re-run `python3 scripts/precheck.py dist`
+3. Re-run `python3 "$EDU_SKILL_ROOT/scripts/precheck.py" dist`
 4. Repeat until `ALL CHECKS PASSED` appears
 
 **Common failures and their fixes:**

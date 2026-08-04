@@ -64,7 +64,8 @@ Extract plain narration text from `SCRIPT.md` into `narration-script.txt` — st
 Run the shipped synthesis script from the project root (the parent of `dist/`):
 
 ```bash
-python3 scripts/generate_voice.py narration-script.txt
+EDU_SKILL_ROOT="<absolute directory containing qwen-mm-plugins-edu-agent/SKILL.md>"
+python3 "$EDU_SKILL_ROOT/scripts/generate_voice.py" narration-script.txt
 ```
 
 It synthesizes every sentence concurrently via the DashScope SDK, downloads each clip, then assembles `narration.wav`, `transcript.json`, and `captions.json` in one pass with exact per-sentence timestamps (measured from each returned clip's real duration). **The script reads `DASHSCOPE_API_KEY` itself** (environment → `~/.qwen-mm-plugins/config` → default) — so it works in GUI-launched harnesses, and you never handle the plaintext key. Do not re-author this as an inline snippet; the logic (sentence split, parallel synthesis, duration-measured timestamps) is fixed and tested.
@@ -117,7 +118,7 @@ Locate scene boundaries by matching the first sentence of each section in `trans
 3. If a math term is mispronounced, adjust `narration-script.txt`:
    - Spell out terms more explicitly (e.g., "x的平方" instead of "x平方")
    - Replace unsupported symbols with spoken equivalents
-   - Re-run `python3 scripts/generate_voice.py` after adjustments
+   - Re-run `python3 "$EDU_SKILL_ROOT/scripts/generate_voice.py" narration-script.txt` after adjustments
 
 ## Gate
 

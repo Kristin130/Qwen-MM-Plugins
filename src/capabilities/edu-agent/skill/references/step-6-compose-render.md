@@ -287,8 +287,8 @@ coverage = one composition per storyboard scene). **Run it from the project root
 (the parent of `dist/`) and DO NOT render until it prints `ALL CHECKS PASSED`:**
 
 ```bash
-python3 "$(find . -path '*skills/math-tutorial/scripts/precheck.py' | head -1)" dist \
-  || python3 ~/.claude/skills/math-tutorial/scripts/precheck.py dist
+EDU_SKILL_ROOT="<absolute directory containing qwen-mm-plugins-edu-agent/SKILL.md>"
+python3 "$EDU_SKILL_ROOT/scripts/precheck.py" dist
 ```
 
 **Self-correction loop (required):**
@@ -328,7 +328,7 @@ python3 "$(find . -path '*skills/math-tutorial/scripts/precheck.py' | head -1)" 
 | **Formula shows "imes" / "eq" / "rac" instead of × / ≠ / a fraction** | LaTeX was written in a JS string with a single backslash: `tex:"4 \times 3"`. JS eats `\t` as a tab, so KaTeX gets "4 imes 3". **Fix:** double-escape in JS strings: `tex:"4 \\times 3"` (or move LaTeX to an HTML `data-tex="4\times3"` where single backslash is fine). Catch it with the pre-render gate `check_katex_escaping.py` (see Validation above). |
 | **Content piles at the top / a side panel is empty / a diagram is invisible** | The `.scene-content` wrapper is not vertically centering its content. Most common: it fills the frame (`position:absolute;inset:0`) but is **not a flex-center container**, so a single-panel child (problem card / step panel / 结论 panel — a normal-flow block with only `max-width`) collapses to its content height and sticks to the top; the bottom ~40-50% stays empty. (The other cause: the wrapper has no definite height at all, so an inner `height:100%` collapses.) **Fix:** make `.scene-content` a centering box that fills the frame — `.scene-content { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:40px 60px 180px; box-sizing:border-box; }`. `position:absolute;inset:0` ALONE does NOT fix it — the flex-center trio is required (or give the content wrapper `height:100%` so it fills the frame itself, as split-layout diagram rows do). Catch it with the pre-render gate `check_scene_layout.py` (see Validation above). |
 | **Force arrow / axis line is missing — only its letter (F/G/N/v) shows, no line or arrowhead** | A glow/blur `filter="url(#…)"` was applied to an **axis-aligned `<line>`** (horizontal velocity arrow, vertical gravity/normal arrow). A horizontal/vertical line has a zero-area bounding box, so the default `objectBoundingBox` filter region collapses to nothing and the line + `marker-end` render **completely invisible** (the `<text>` label has no filter, so it survives). **Fix:** remove `filter="url(#…)"` from the arrow (use a solid `stroke` 4–6 + marker), or make the filter absolute (`filterUnits="userSpaceOnUse" x="0" y="0" width="<vbW>" height="<vbH>"`). Diagonal rays are unaffected. Catch it with the pre-render gate `check_svg_filter_bbox.py` (see Validation above). |
-| **Scene shows dots/axes/labels but the connecting curves or lines are MISSING (有点、没线)** | The curve's path `d` is generated at load by inline JS, but that JS never ran in the render — almost always because a hand-rolled renderer stripped `<script src="./gsap/gsap.min.js">` without re-injecting GSAP by absolute path, so `gsap` is `undefined`, `gsap.timeline()` throws, and `setup()` never builds the geometry → `<path>` stays `d="M0 0"`. Static dots/axes/labels still show, hiding the loss. **Fix:** render with `npx hyperframes render` (don't hand-roll a renderer); if you must, re-inject GSAP/KaTeX/fonts via absolute `file://` paths. Ensure any curve-geometry JS runs before/independent of `gsap.timeline()`. **Catch it with the POST-render gate `python3 scripts/postcheck.py dist`** (`check_curves_rendered.py`) — see "Post-Render Line/Curve Render-Truth Gate". |
+| **Scene shows dots/axes/labels but the connecting curves or lines are MISSING (有点、没线)** | The curve's path `d` is generated at load by inline JS, but that JS never ran in the render — almost always because a hand-rolled renderer stripped `<script src="./gsap/gsap.min.js">` without re-injecting GSAP by absolute path, so `gsap` is `undefined`, `gsap.timeline()` throws, and `setup()` never builds the geometry → `<path>` stays `d="M0 0"`. Static dots/axes/labels still show, hiding the loss. **Fix:** render with `npx hyperframes render` (don't hand-roll a renderer); if you must, re-inject GSAP/KaTeX/fonts via absolute `file://` paths. Ensure any curve-geometry JS runs before/independent of `gsap.timeline()`. **Catch it with the POST-render gate `python3 "$EDU_SKILL_ROOT/scripts/postcheck.py" dist`** (`check_curves_rendered.py`) — see "Post-Render Line/Curve Render-Truth Gate". |
 
 ## Preview
 
@@ -482,14 +482,15 @@ thin/decorative-dashed guides are deliberately not asserted (they can't be pixel
 
 ```bash
 # after `npx hyperframes render` produced dist/output.mp4:
-python3 "$(find . -path '*skills/math-tutorial/scripts/postcheck.py' | head -1)" dist \
-  || python3 ~/.claude/skills/math-tutorial/scripts/postcheck.py dist
+EDU_SKILL_ROOT="<absolute directory containing qwen-mm-plugins-edu-agent/SKILL.md>"
+python3 "$EDU_SKILL_ROOT/scripts/postcheck.py" dist
 ```
 
 Loop: render → `postcheck.py dist` → if it FAILs, fix the renderer/composition → re-render → repeat
-until it prints `ALL POST-RENDER CHECKS PASSED`. (Graceful SKIP with a NOTE if Chrome / ffmpeg /
-output.mp4 are unavailable — but the render env has them, so it is enforced there. You can also point
-it at a specific file: `python3 scripts/check_curves_rendered.py dist path/to/video.mp4`.)
+until it prints `ALL POST-RENDER CHECKS PASSED`. A missing `dist/` or output MP4 is a failure. If Chrome,
+Node, ffmpeg, or GSAP is unavailable, `postcheck.py` reports `POSTCHECK INCOMPLETE` and exits non-zero;
+the corresponding visual property was not verified. You can also point the curve check at a specific file:
+`python3 "$EDU_SKILL_ROOT/scripts/check_curves_rendered.py" dist path/to/video.mp4`.
 
 ### Prevention — do NOT hand-roll a renderer that strips GSAP
 **Render with `npx hyperframes render` (above).** Do not write a bespoke CDP/puppeteer renderer. If you
@@ -523,6 +524,6 @@ Final checklist:
 - [ ] **Chinese font not subsetted** — `ls dist/assets/fonts | grep -c subset` is 0; each "Noto Sans SC" `@font-face` has exactly one `url(...)`
 - [ ] **`precheck.py dist` prints `ALL CHECKS PASSED`** — one command runs all four render gates and they all pass: no CJK inside KaTeX (no `\text{秒}`), LaTeX in JS strings double-escaped (`"4 \\times 3"`, no "imes"/"eq"/"rac"), caption font-size 36–40px (≤44px), and every `.scene-content` is a centering box that fills the frame (`display:flex;align-items:center;justify-content:center` — no content piled at the top / blank side panels)
 - [ ] **Blank frame detection passed** — extracted frames from rendered video verified non-blank (no scene is pure white). See "Post-Render Blank Frame Detection" above
-- [ ] **Line/curve render-truth passed (线/曲线没漏画)** — `python3 scripts/postcheck.py dist` prints `ALL POST-RENDER CHECKS PASSED`: every solid line/curve the scene should draw is actually painted in `output.mp4` (catches the "有点、没线" bug where JS-generated path `d` never drew because the renderer didn't load GSAP). See "Post-Render Line/Curve Render-Truth Gate" above
+- [ ] **Line/curve render-truth passed (线/曲线没漏画)** — `python3 "$EDU_SKILL_ROOT/scripts/postcheck.py" dist` prints `ALL POST-RENDER CHECKS PASSED`: every solid line/curve the scene should draw is actually painted in `output.mp4` (catches the "有点、没线" bug where JS-generated path `d` never drew because the renderer didn't load GSAP). See "Post-Render Line/Curve Render-Truth Gate" above
 - [ ] **Video rendered to MP4** — `npx hyperframes render` completed successfully
 - [ ] Output `.mp4` file path and size reported to user

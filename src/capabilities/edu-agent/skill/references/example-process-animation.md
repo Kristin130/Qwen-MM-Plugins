@@ -117,4 +117,4 @@ tl.fromTo("#S .a1",{x:0,y:0},{x:-42,y:28,duration:4,ease:"sine.inOut",yoyo:true,
 3. If a quantity changes across stages, add a count-up (T4) and/or the stepped chart (T5).
 4. Obey all standard gates (root `id`+`data-width/height`, `<template>` wrapper, `.cm`/getElementById for
    KaTeX, one screen高度, smooth curves for continuous graphs, arrowheads point +x, no 360° spin) — run
-   `python3 scripts/precheck.py dist` until ALL CHECKS PASSED.
+   `python3 "$EDU_SKILL_ROOT/scripts/precheck.py" dist` until ALL CHECKS PASSED.

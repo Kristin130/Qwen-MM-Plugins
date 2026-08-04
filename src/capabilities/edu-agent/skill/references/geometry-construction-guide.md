@@ -762,4 +762,4 @@ Rules:
 - [ ] **No label collides with another label** — no two `<text>` boxes overlap; center vs arm labels split above/below; point labels on an axis staggered (Rule #28, gate `check_svg_label_overlap.py`)
 - [ ] viewBox chosen so figure is centered with ≥30 unit margin
 - [ ] **Inclined plane (斜面) is right-side-up** — horizontal base at the BOTTOM (largest y), peak at the TOP; object on the upper face; normal force N points up-and-out (never downward) (Pattern 8)
-- [ ] `python3 scripts/check_geometry_verification.py dist` passes
+- [ ] `python3 "$EDU_SKILL_ROOT/scripts/check_geometry_verification.py" dist` passes

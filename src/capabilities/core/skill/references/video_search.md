@@ -21,7 +21,7 @@ Frames tell you what something *looks like*, not its *exact name* or the *facts 
 
 - `read_video` — watch the video (`fps`, `budget`, `start_time`, `end_time`).
 - `save_view` — save specific frame(s) of a video to image files (pass `times=[...]`; returns the paths). Use this to grab a frame for `image_search` — no ffmpeg.
-- `image_search` — reverse image search on an image **file path** (optional `bbox` `[x1,y1,x2,y2]` in 0–1000 coords to isolate the subject).
+- `image_search` — reverse image search on an image **file path** (optional `bbox` `[x1,y1,x2,y2]` in 0–1000 coords to isolate the subject). Searching a local image uploads it to the third-party public host `uguu.se`; ask the user for consent and pass `allow_public_upload=true` only after they approve.
 - `web_search` — text search to confirm a candidate, identify, or gather facts.
 - `web_extractor` — read a promising page in depth.
 
