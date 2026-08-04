@@ -16,6 +16,7 @@ Live reachability (does the real API answer?) lives in test_api_reachability.py.
 
 import base64
 import json
+import os
 import types
 
 import pytest
@@ -134,6 +135,22 @@ def test_image_search_format_and_empty():
     out = image_search._format_results(docs)
     assert "[1]" in out and "http://img" in out and "http://l" in out
     assert image_search._format_results([]) == "No results found."
+
+
+def test_image_search_crop_converts_rgba_to_jpeg(tmp_path):
+    from PIL import Image
+
+    source = tmp_path / "rgba.png"
+    Image.new("RGBA", (20, 10), (255, 0, 0, 128)).save(source)
+
+    cropped_path = image_search._crop_bbox(str(source), [0, 0, 500, 1000])
+    try:
+        with Image.open(cropped_path) as cropped:
+            assert cropped.format == "JPEG"
+            assert cropped.mode == "RGB"
+            assert cropped.size == (10, 10)
+    finally:
+        os.unlink(cropped_path)
 
 
 # ── asr time/format helpers ──────────────────────────────────────────
@@ -275,6 +292,57 @@ def test_image_search_url_fast_path(monkeypatch):
     # a public URL and no crop → straight to Lens, no upload/download
     blocks = image_search.handle({"image_path": "https://example.com/a.jpg"})
     assert "[1]" in blocks[0]["text"] and "http://i" in blocks[0]["text"]
+
+
+def test_image_search_local_file_requires_public_upload_consent(monkeypatch, sample_image):
+    monkeypatch.setattr(serper, "resolve_serper_key", lambda a: "k")
+    monkeypatch.setattr(
+        image_search,
+        "_upload_public",
+        lambda *_a, **_k: pytest.fail("must not upload without explicit consent"),
+    )
+
+    blocks = image_search.handle({"image_path": sample_image})
+
+    assert _is_error(blocks)
+    assert "allow_public_upload=true" in blocks[0]["text"]
+
+
+def test_image_search_local_file_uploads_after_consent(monkeypatch, sample_image):
+    uploaded = []
+    monkeypatch.setattr(serper, "resolve_serper_key", lambda a: "k")
+    monkeypatch.setattr(image_search, "_upload_public", lambda path: uploaded.append(path) or "https://uguu.se/a.jpg")
+    monkeypatch.setattr(
+        image_search,
+        "_lens_search",
+        lambda url, key: [{"title": "T", "link": "https://example.com/result"}],
+    )
+
+    blocks = image_search.handle({"image_path": sample_image, "allow_public_upload": True})
+
+    assert uploaded == [sample_image]
+    assert "https://example.com/result" in blocks[0]["text"]
+
+
+def test_image_search_crop_failure_never_uploads_original(monkeypatch, sample_image):
+    monkeypatch.setattr(serper, "resolve_serper_key", lambda a: "k")
+    monkeypatch.setattr(image_search, "_crop_bbox", lambda *_a, **_k: (_ for _ in ()).throw(ValueError("bad crop")))
+    monkeypatch.setattr(
+        image_search,
+        "_upload_public",
+        lambda *_a, **_k: pytest.fail("must not upload the original after crop failure"),
+    )
+
+    blocks = image_search.handle(
+        {
+            "image_path": sample_image,
+            "bbox": [0, 0, 500, 1000],
+            "allow_public_upload": True,
+        }
+    )
+
+    assert _is_error(blocks)
+    assert "could not crop image: bad crop" in blocks[0]["text"]
 
 
 def test_segmentation_returns_text_and_image(monkeypatch):

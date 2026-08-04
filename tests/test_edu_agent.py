@@ -6,9 +6,14 @@ body's section layout or first heading — the skill prose is actively edited (e
 Troubleshooting index may be prepended) and that must not break these checks.
 """
 
+import importlib.util
 import json
 import os
 import re
+import subprocess
+import sys
+import types
+from pathlib import Path
 
 import pytest
 from conftest import REPO_ROOT
@@ -16,6 +21,8 @@ from conftest import REPO_ROOT
 CAP_DIR = os.path.join(REPO_ROOT, "src", "capabilities", "edu-agent")
 SKILL_MD = os.path.join(CAP_DIR, "skill", "SKILL.md")
 EXPECTED_NAME = "qwen-mm-plugins-edu-agent"
+SKILL_ROOT = Path(CAP_DIR) / "skill"
+POSTCHECK = SKILL_ROOT / "scripts/postcheck.py"
 
 MANIFESTS = [".claude-plugin/plugin.json", ".codex-plugin/plugin.json", ".qoder-plugin/plugin.json"]
 
@@ -78,3 +85,39 @@ def test_manifest_skills_path_resolves(rel):
         target = os.path.normpath(os.path.join(CAP_DIR, entry))
         assert os.path.isdir(target), f"{rel} skills path {entry!r} must exist"
         assert os.path.isfile(os.path.join(target, "SKILL.md"))
+
+
+def test_postcheck_fails_when_rendered_video_is_missing(tmp_path):
+    dist = tmp_path / "dist"
+    compositions = dist / "compositions"
+    compositions.mkdir(parents=True)
+    (dist / "index.html").write_text('<div data-composition-src="compositions/scene.html"></div>', encoding="utf-8")
+    (compositions / "scene.html").write_text('<div data-composition-id="scene"></div>', encoding="utf-8")
+    proc = subprocess.run([sys.executable, str(POSTCHECK), str(dist)], capture_output=True, text=True)
+    assert proc.returncode == 1
+    assert "rendered MP4 is missing" in proc.stdout
+    assert "safe to deliver" not in proc.stdout
+
+
+def test_postcheck_does_not_treat_skipped_checks_as_passed(monkeypatch, tmp_path, capsys):
+    spec = importlib.util.spec_from_file_location("edu_postcheck_test", POSTCHECK)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "output.mp4").write_bytes(b"rendered")
+    monkeypatch.setattr(module.sys, "argv", [str(POSTCHECK), str(dist)])
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda *args, **kwargs: types.SimpleNamespace(
+            returncode=0, stdout="NOTE: check skipped — no Chrome", stderr=""
+        ),
+    )
+
+    assert module.main() == 1
+    output = capsys.readouterr().out
+    assert "POSTCHECK INCOMPLETE" in output
+    assert "safe to deliver" not in output

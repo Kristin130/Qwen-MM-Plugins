@@ -59,6 +59,11 @@ def build_graph():
     return _import_build_module("build_graph")
 
 
+@pytest.fixture(scope="module")
+def pipeline_worker(build_graph):
+    return _import_build_module("pipeline_worker")
+
+
 # ── time_utils: timestamp parsing/formatting ─────────────────────────
 
 
@@ -273,6 +278,15 @@ def test_search_empty_index_returns_empty(embeddings):
     assert embeddings.EmbeddingIndex().search("query") == []
 
 
+def test_sparse_fallback_omits_zero_score_nodes(embeddings):
+    np = pytest.importorskip("numpy")
+    index = _make_index(embeddings, np)
+    index._dense_disabled = True
+
+    assert [r["node_id"] for r in index.search("orange", top_k=10)] == ["n0"]
+    assert index.search("unrelated vocabulary", top_k=10) == []
+
+
 def test_normalized_rows_are_unit_norm_and_zero_safe(embeddings):
     np = pytest.importorskip("numpy")
     index = embeddings.EmbeddingIndex()
@@ -327,6 +341,56 @@ def test_fallback_aggregation_covers_all_macros(build_graph):
     assert supers[0]["time_range"][0] == 0.0
     assert supers[-1]["time_range"][1] == 200.0
     assert agg["root"]["title"], "fallback must still synthesize a root"
+
+
+def test_pipeline_worker_does_not_mark_done_when_phase1_failed(pipeline_worker, monkeypatch, tmp_path):
+    (tmp_path / "01_macros.json").write_text("[]")
+    monkeypatch.setattr(pipeline_worker, "_p1_alive", lambda _pid: False)
+
+    with pytest.raises(RuntimeError, match="Phase 1 exited without 01_done"):
+        pipeline_worker.run_pipeline_worker(
+            "video.mp4", str(tmp_path), "model", "key", num_workers=1, poll_interval=0, p1_pid=123
+        )
+
+    assert not (tmp_path / "02_done").exists()
+
+
+def test_embedding_failure_can_resume_from_saved_graph(build_graph, monkeypatch, tmp_path):
+    np = pytest.importorskip("numpy")
+    memory = _make_memory(build_graph)
+
+    def fail_build(_self, _nodes):
+        raise RuntimeError("synthetic embedding failure")
+
+    monkeypatch.setattr(build_graph.EmbeddingIndex, "build", fail_build)
+    with pytest.raises(RuntimeError, match="synthetic embedding failure"):
+        build_graph._assemble_save_embed(
+            memory.video_key,
+            memory.video_path,
+            str(tmp_path),
+            memory.root,
+            memory.super_events,
+            memory.macro_events,
+            memory.macro_relations,
+            memory.super_relations,
+        )
+
+    graph_path = tmp_path / "graph_memory.json"
+    assert graph_path.exists()
+    assert not (tmp_path / "embeddings.npz").exists()
+
+    def build_locally(index, nodes):
+        index.nodes = nodes
+        index._set_embeddings(np.ones((len(nodes), 3), dtype=np.float32))
+        index._build_sparse_index()
+
+    monkeypatch.setattr(build_graph.EmbeddingIndex, "build", build_locally)
+    saved = build_graph.HierarchicalGraphMemory.load(str(graph_path))
+    build_graph._build_save_embeddings(saved, str(tmp_path))
+
+    loaded = build_graph.EmbeddingIndex()
+    loaded.load(str(tmp_path / "embeddings.npz"))
+    assert len(loaded.nodes) == loaded.embeddings.shape[0] > 0
 
 
 def test_merge_asr_into_macros_by_overlap(build_graph):

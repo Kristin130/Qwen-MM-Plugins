@@ -2,11 +2,12 @@
 
 Unlike test_api_tools.py (fully mocked, always runs), these actually hit the real
 services to confirm the endpoint + credentials + model are reachable end-to-end.
-They are skipped automatically when the relevant key is absent, so a plain
-`pytest tests/` on a machine with no keys stays green and offline.
+They require an explicit opt-in in addition to the relevant key, so a plain
+`pytest tests/` stays offline even on a configured developer machine.
 
 Run them explicitly with real creds:
-    DASHSCOPE_API_KEY=... SERPER_API_KEY=... pytest -m reachability tests/
+    QWEN_MM_RUN_REACHABILITY=1 DASHSCOPE_API_KEY=... SERPER_API_KEY=... \
+        pytest -m reachability tests/
 Skip them even when keys are present:
     pytest -m "not reachability" tests/
 
@@ -16,6 +17,7 @@ credential/connectivity error, NOT that the model returns any specific content
 through shared.env.get_env, so a key from env or config is honoured the same way.
 """
 
+import os
 import shutil
 import subprocess
 
@@ -25,12 +27,19 @@ from shared.env import get_env
 
 pytestmark = pytest.mark.reachability
 
+RUN_REACHABILITY = os.environ.get("QWEN_MM_RUN_REACHABILITY") == "1"
 HAS_DASHSCOPE = bool(get_env("DASHSCOPE_API_KEY"))
 HAS_SERPER = bool(get_env("SERPER_API_KEY"))
 HAS_FFMPEG = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
 
-requires_dashscope = pytest.mark.skipif(not HAS_DASHSCOPE, reason="DASHSCOPE_API_KEY not set")
-requires_serper = pytest.mark.skipif(not HAS_SERPER, reason="SERPER_API_KEY not set")
+requires_dashscope = pytest.mark.skipif(
+    not RUN_REACHABILITY or not HAS_DASHSCOPE,
+    reason="set QWEN_MM_RUN_REACHABILITY=1 and DASHSCOPE_API_KEY to run live checks",
+)
+requires_serper = pytest.mark.skipif(
+    not RUN_REACHABILITY or not HAS_SERPER,
+    reason="set QWEN_MM_RUN_REACHABILITY=1 and SERPER_API_KEY to run live checks",
+)
 
 
 def _text(blocks) -> str:
