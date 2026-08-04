@@ -152,6 +152,7 @@ def test_to_content_block_text_and_image():
     assert isinstance(t, types.TextContent) and t.text == "hi"
     im = fw._to_content_block({"type": "image", "data": "AAAA", "mimeType": "image/png"})
     assert isinstance(im, types.ImageContent) and im.data == "AAAA"
+    assert im.model_dump(by_alias=True)["_meta"] == {"codex/imageDetail": "original"}
 
 
 def test_to_content_block_malformed_image_falls_back_to_text():

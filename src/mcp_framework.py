@@ -167,7 +167,14 @@ def _to_content_block(block: dict):
 
     btype = block.get("type")
     if btype == "image" and "data" in block:
-        return types.ImageContent(type="image", data=block["data"], mimeType=block.get("mimeType", "image/jpeg"))
+        # Codex MCP image-detail extension ("original" instead of its default "high"):
+        # https://github.com/openai/codex/blob/44cb66e4edc061d39ae38de949b47f6f94416553/codex-rs/protocol/src/models.rs#L2106-L2187
+        return types.ImageContent(
+            type="image",
+            data=block["data"],
+            mimeType=block.get("mimeType", "image/jpeg"),
+            _meta={"codex/imageDetail": "original"},
+        )
     if btype == "text":
         return types.TextContent(type="text", text=block.get("text", ""))
     return types.TextContent(type="text", text=json.dumps(block, ensure_ascii=False))
