@@ -2,7 +2,7 @@
 #
 # Qwen-MM-Plugins — interactive installer & setup.
 #
-#   curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/release/install.sh | bash   # guided menu
+#   curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install.sh | bash   # guided menu
 #   bash install.sh [install|configure|verify|uninstall]        # single interactive action
 #   bash install.sh --verify [caps]   # non-interactive: check system deps of installed (or listed) caps
 #
@@ -121,7 +121,7 @@ if [ "$NONINTERACTIVE" = 1 ]; then
   exec 3</dev/null                                   # headless: no prompts, no terminal required
 elif ! { exec 3</dev/tty; } 2>/dev/null; then
   printf 'This installer is interactive — run it in a terminal (or use --verify headless):\n' >&2
-  printf '  curl -fsSLO https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/release/install.sh && bash install.sh\n' >&2
+  printf '  curl -fsSLO https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install.sh && bash install.sh\n' >&2
   exit 1
 fi
 
@@ -140,7 +140,14 @@ QMP_TRUECOLOR=0
 # Menus hide the cursor (\033[?25l); restore it + reset attributes on Ctrl-C / kill so the
 # terminal isn't left with an invisible cursor. Also drops spin's temp file if killed mid-spin.
 _QMP_SPIN_TMP=''
-_restore_tty() { printf '\033[?25h\033[0m'; [ -n "$_QMP_SPIN_TMP" ] && rm -f "$_QMP_SPIN_TMP"; }
+# _TTY_SAVED holds the tty's cooked-mode settings while a single-key menu has it in cbreak mode (see
+# tty_cbreak below). On Ctrl-C / kill, restore the cursor, reset attributes, put the tty BACK to cooked
+# so the shell isn't left with no echo / invisible cursor, and drop any spinner temp file.
+_TTY_SAVED=''
+_restore_tty() { [ -t 1 ] && printf '\033[?25h\033[0m'; [ -n "$_TTY_SAVED" ] && stty "$_TTY_SAVED" <&3 2>/dev/null; _TTY_SAVED=''; [ -n "$_QMP_SPIN_TMP" ] && rm -f "$_QMP_SPIN_TMP"; }
+# EXIT covers abnormal exits too (e.g. `set -u` on an unbound var mid-menu) — without it a crash while
+# a menu holds the tty in no-echo cbreak mode would leave the shell with no echo + hidden cursor.
+trap '_restore_tty' EXIT
 trap '_restore_tty; exit 130' INT
 trap '_restore_tty; exit 143' TERM
 
@@ -155,6 +162,11 @@ mark()  { [ "$1" = ok ] && printf '%b✓%b' "$CG" "$C0" || printf '%b·%b' "$CD"
 
 # Animate a braille spinner while running <cmd> in the background; capture its stdout into <outvar>.
 # Falls back to a plain synchronous run when stdout isn't a TTY (pipes/CI). Returns <cmd>'s exit code.
+# Bounded by QMP_SPIN_TIMEOUT seconds (default 15; 0 = unbounded): a wedged harness `list` CLI (network,
+# or an auth prompt that gets EOF under curl|bash) would otherwise spin forever. On timeout the child is
+# killed and <outvar> left empty — every caller treats empty detection output as "unknown / nothing
+# installed", so a stuck detection degrades to an unfiltered menu instead of a frozen installer. Job
+# control is off under curl|bash (one process group), so we kill only the child pid, never the group.
 spin() {  # spin <message> <outvar> -- cmd...
   local msg=$1 outvar=$2; shift 2; [ "${1:-}" = "--" ] && shift
   if [ ! -t 1 ] || [ -n "${QMP_NO_TUI:-}" ]; then
@@ -162,15 +174,24 @@ spin() {  # spin <message> <outvar> -- cmd...
   fi
   local tmp; tmp=$(mktemp "${TMPDIR:-/tmp}/qmp.XXXXXX"); _QMP_SPIN_TMP=$tmp
   ( "$@" >"$tmp" 2>/dev/null ) &
-  local pid=$! i=0
+  local pid=$! i=0 ticks=0 timedout=0
+  local maxticks=$(( ${QMP_SPIN_TIMEOUT:-15} * 10 ))       # loop sleeps 0.1s → 10 ticks/second
   local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
   printf '\033[?25l'
   while kill -0 "$pid" 2>/dev/null; do
     printf '\r  %b%s%b %s' "$CC" "${frames[i]}" "$C0" "$msg"
-    i=$(( (i + 1) % 10 )); sleep 0.1
+    i=$(( (i + 1) % 10 )); sleep 0.1; ticks=$((ticks + 1))
+    if [ "$maxticks" -gt 0 ] && [ "$ticks" -ge "$maxticks" ]; then
+      timedout=1; kill "$pid" 2>/dev/null; sleep 0.2; kill -9 "$pid" 2>/dev/null; break
+    fi
   done
-  wait "$pid"; local rc=$?
+  wait "$pid" 2>/dev/null; local rc=$?
   printf '\r\033[2K\033[?25h'
+  if [ "$timedout" = 1 ]; then
+    printf -v "$outvar" '%s' ''; rm -f "$tmp"; _QMP_SPIN_TMP=''
+    warn "timed out after ${QMP_SPIN_TIMEOUT:-15}s: ${msg%%...*} — continuing"
+    return 124
+  fi
   printf -v "$outvar" '%s' "$(cat "$tmp")"; rm -f "$tmp"; _QMP_SPIN_TMP=''
   return $rc
 }
@@ -527,9 +548,10 @@ _detect_mask() {
 # All read keys from /dev/tty (fd 3) so they work under `curl | bash`, and fall back to a numbered
 # prompt when stdout isn't a terminal or QMP_NO_TUI is set.
 
-# How long to wait for an escape sequence's trailing bytes (arrow keys). On bash 4+ a lone Esc is
-# instant (`read -t 0` in _read_key gates this), so it only bounds arrow decoding. On bash 3.2
-# (macOS) there's no such gate, so this doubles as the bare-Esc latency: 0.1s on 4+, 1s on 3.2.
+# How long to wait for an escape sequence's trailing bytes (arrow keys). bash 4+ only: a lone Esc is
+# instant there (`read -t 0` in _read_key gates it), so this just bounds arrow decoding (0.1s). bash 3.2
+# (macOS) has no `read -t 0` and no sub-second `read -t`, so in cbreak mode _read_key lets the TERMINAL
+# time the read (VMIN/VTIME) instead of this value — bare Esc resolves in ~0.1s there too, not a second.
 if [ "${BASH_VERSINFO:-0}" -ge 4 ]; then _ESC_T=0.1; else _ESC_T=1; fi
 
 # _read_key → KEY = up | down | enter | space | all | back | cancel | other
@@ -545,13 +567,21 @@ _read_key() {
     k|K) KEY=up ;;
     q|Q) KEY=cancel ;;
     $'\033')
-      # Arrow keys send their trailing bytes in the SAME burst as the Esc (already buffered); a lone
-      # Esc has none. bash 4+ has `read -t 0` (tests for buffered input WITHOUT consuming) → bare Esc
-      # is instant. bash 3.2 (macOS default) lacks that semantic — `read -t 0` always fails there,
-      # which would misread every arrow as a bare Esc — so on 3.2 we wait out a short timeout instead.
+      # Arrow keys send their trailing bytes right after the Esc; a lone Esc sends none. Decode them
+      # without blocking on a bare Esc — the tricky part on macOS's bash 3.2:
+      #   • bash 4+ — `read -t 0` tests for buffered bytes WITHOUT consuming (bare Esc → instant), then
+      #     a fractional-timeout read grabs the arrow's "[A".
+      #   • bash 3.2 in cbreak mode — no `read -t 0` and no sub-second `read -t`, so let the TERMINAL
+      #     time it: VMIN 0 / VTIME 0.1s + `dd` for the 2 trailing bytes. (`read -n` would reset our
+      #     termios; `dd` doesn't, and its fixed count leaves an autorepeat burst buffered for the next
+      #     key.) Bare Esc → ~0.1s instead of a full second; arrows stay instant. Empty ⇒ bare Esc.
       s=''
       if [ "${BASH_VERSINFO:-0}" -ge 4 ]; then
         read -t 0 -u 3 2>/dev/null && IFS= read -rsn2 -t "$_ESC_T" -u 3 s
+      elif [ -n "$_TTY_SAVED" ]; then
+        stty min 0 time 1 <&3 2>/dev/null
+        s=$(dd bs=1 count=2 <&3 2>/dev/null)
+        stty min 1 time 0 <&3 2>/dev/null
       else
         IFS= read -rsn2 -t "$_ESC_T" -u 3 s || s=''
       fi
@@ -562,9 +592,22 @@ _read_key() {
 
 _tty_ui() { [ -t 1 ] && [ -z "${QMP_NO_TUI:-}" ]; }
 
+# Put the tty (fd 3) into cbreak mode — non-canonical, no echo, deliver each byte immediately — so the
+# arrow-key menus below react to a keystroke at once instead of waiting for Enter. This is essential
+# under `curl … | bash`: stdin is the pipe (not a tty), and bash's own `read -n1` raw-mode handling
+# doesn't reliably reach fd 3 there, leaving the tty line-buffered (arrows dead, only Enter flushes).
+# tty_cooked restores the saved settings. Both no-op unless we're driving an interactive tty; text
+# prompts (ask/ask_secret/confirm) deliberately stay in cooked mode — they read whole lines.
+tty_cbreak() {
+  _tty_ui || return 0
+  _TTY_SAVED=$(stty -g <&3 2>/dev/null) || _TTY_SAVED=''
+  [ -n "$_TTY_SAVED" ] && stty -icanon -echo min 1 time 0 <&3 2>/dev/null
+}
+tty_cooked() { [ -n "$_TTY_SAVED" ] && stty "$_TTY_SAVED" <&3 2>/dev/null; _TTY_SAVED=''; }
+
 # Hold a read-only / report screen on-screen until a key is pressed (interactive only). Without it,
 # such screens flash away the instant they return, since the menu reclears on the next loop.
-pause() { _tty_ui && { printf '\n  %bpress any key to return%b' "$CD" "$C0"; _read_key; }; return 0; }
+pause() { _tty_ui && { printf '\n  %bpress any key to return%b' "$CD" "$C0"; tty_cbreak; _read_key; tty_cooked; }; return 0; }
 
 # menu_pick <title> <item...> → PICK_I (index, -1 = cancelled) and PICK (value)
 menu_pick() {
@@ -573,7 +616,7 @@ menu_pick() {
   for ((i = 0; i < n; i++)); do [ ${#items[$i]} -gt $w ] && w=${#items[$i]}; done
   if _tty_ui; then
     printf '\n  %b%s%b  %b(↑/↓ · enter · esc/q back)%b\n\n' "$CB" "$title" "$C0" "$CD" "$C0"
-    printf '\033[?25l'; trap 'printf "\033[?25h"' RETURN
+    printf '\033[?25l'; tty_cbreak; trap 'printf "\033[?25h"; tty_cooked' RETURN
     while :; do
       for ((i = 0; i < n; i++)); do
         if [ "$i" != "$cur" ]; then printf '\033[2K    %s\n' "${items[$i]}"
@@ -592,7 +635,7 @@ menu_pick() {
       esac
       printf '\033[%dA' "$n"
     done
-    printf '\033[?25h'; trap - RETURN
+    tty_cooked; printf '\033[?25h'; trap - RETURN
   else
     printf '\n  %s\n' "$title"
     for ((i = 0; i < n; i++)); do printf '    %d) %s\n' $((i + 1)) "${items[$i]}"; done
@@ -629,7 +672,7 @@ multi_pick() {
   MP_STATUS=ok
   if _tty_ui; then
     printf '\n  %b%s%b\n  %b↑/↓ move · space toggle · a all · enter confirm · esc back · q quit%b\n\n' "$CB" "$title" "$C0" "$CD" "$C0"
-    printf '\033[?25l'; trap 'printf "\033[?25h"' RETURN
+    printf '\033[?25l'; tty_cbreak; trap 'printf "\033[?25h"; tty_cooked' RETURN
     while :; do
       _multi_rows "$cur"
       _read_key
@@ -644,7 +687,7 @@ multi_pick() {
       esac
       printf '\033[%dA' "$n"
     done
-    printf '\033[?25h'; trap - RETURN
+    tty_cooked; printf '\033[?25h'; trap - RETURN
   else
     while :; do
       printf '\n  %b%s%b  %b([✓] on · [ ] off · [-] locked)%b\n\n' "$CB" "$title" "$C0" "$CD" "$C0"
