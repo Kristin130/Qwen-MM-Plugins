@@ -51,7 +51,7 @@ Or run one action at a time — `bash install.sh install` / `configure` / `verif
 
 Prefer your harness's own commands — or you're on opencode / pi / QwenPaw, which the installer doesn't cover? Register the skill + MCP yourself.
 
-**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw) — add the marketplace, then install a capability (replace `<cap>` with `core` / `video-memory` / `video-edit` / `blender` / `freecad`):
+**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw · Qwen Code) — add the marketplace, then install a capability (replace `<cap>` with `core` / `video-memory` / `video-edit` / `blender` / `freecad`):
 
 ```bash
 # Claude Code
@@ -65,11 +65,13 @@ codex    plugin  marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
 codex    plugin  add           qwen-mm-plugins-<cap>@qwen-mm-plugins
 # OpenClaw
 openclaw plugins install       qwen-mm-plugins-<cap> --marketplace https://github.com/QwenLM/Qwen-MM-Plugins.git
+# Qwen Code
+qwen extensions install https://github.com/QwenLM/Qwen-MM-Plugins.git:qwen-mm-plugins-<cap> --consent
 ```
 
 `marketplace add` also accepts a local repo path; re-running is safe. On **codex**, `marketplace add` does **not** refresh an already-added marketplace, so run `codex plugin marketplace upgrade qwen-mm-plugins` before `plugin add` to pick up newly-published capabilities.
 
-**Other harnesses** (Qwen Code · Gemini CLI · opencode · pi · QwenPaw · …) register the skill + MCP in their own config — exact per-harness blocks are in [`docs/en/installation.md`](docs/en/installation.md). Easiest of all: **just ask the agent** — "install `qwen-mm-plugins-<cap>`".
+**Other harnesses** (Gemini CLI · opencode · pi · QwenPaw · …) register the skill + MCP in their own config — exact per-harness blocks are in [`docs/en/installation.md`](docs/en/installation.md). Easiest of all: **just ask the agent** — "install `qwen-mm-plugins-<cap>`".
 
 ## 🔧 Dependencies
 
