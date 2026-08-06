@@ -941,7 +941,7 @@ def step3_hierarchical_aggregation(
     macros: list[MacroEvent],
     model: str = DEFAULT_MODEL,
     api_key: str = "",
-    window_size: int = 20,
+    window_size: int = 50,
 ) -> tuple[VideoRoot, list[SuperEvent], list[MacroRelation], list[SuperRelation]]:
     """Phase 3: aggregate macros into supers and root using sliding window.
 
