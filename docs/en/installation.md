@@ -2,6 +2,21 @@
 
 The fast paths — plugin marketplace and the guided installer — are in the [README](../../README.md#-installation). This page covers **non-plugin harnesses** (manual skill + MCP install), the resulting tool-name prefixes, the full dependency reference, and the repository layout.
 
+## Windows (WSL2)
+
+Windows x64 users should install WSL2 with Ubuntu and clone the repository inside the WSL
+home directory (for example `~/code`), rather than under a mounted Windows drive such as
+`/mnt/c`. Then follow the same installation commands as Linux/macOS. From an elevated
+PowerShell terminal, WSL2 can be installed with:
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+When using Codex on Windows, set the agent environment to WSL2, restart Codex, and install
+and use the plugin inside that same WSL environment. WSL2 is currently the only supported
+Windows environment; native Windows has not yet been validated.
+
 ## Non-marketplace harnesses: register skill + MCP directly
 
 Harnesses without a plugin marketplace register the **skill** and **MCP server** in their own config. **Qwen Code** and **Gemini CLI** are automated by the [guided installer](../../README.md#-installation) (`bash install.sh` → pick the harness); the rest (opencode, pi, QwenPaw, …) are manual — per-harness steps below. For anything else, the easiest path is to **ask the agent to do it for you** ("install `qwen-mm-plugins-<cap>`").
