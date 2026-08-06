@@ -191,7 +191,7 @@ qwenpaw skills config    # 交互勾选启用
 | `QWEN_MM_CONFIG_DIR` | 覆盖 GUI harness 读取密钥的配置目录 | `~/.qwen-mm-plugins` |
 | `QWEN_MM_CONFIG` | 覆盖配置文件的完整路径 | `<配置目录>/config` |
 
-> **blender / freecad** 是瘦客户端 —— 它们连接到一台**正在运行**、装好随包 addon 的 Blender / FreeCAD。`QWEN_MM_AUTOLAUNCH=1`（插件清单里默认预设）会在第一次工具调用时把应用拉起来，Linux-x86_64 上缺应用时自动下载。完整安装、环境变量与排障见 [`blender-freecad-usage.md`](blender-freecad-usage.md)。
+> **blender / freecad** 是瘦客户端 —— 它们连接到一台**正在运行**、装好随包 addon 的 Blender / FreeCAD。`QWEN_MM_AUTOLAUNCH=1`（插件清单里默认预设）会在第一次工具调用时把应用拉起来，Linux-x86_64 上缺应用时自动下载。完整安装、环境变量与排障见 [`cookbooks/blender`](../../cookbooks/blender/usage.md) / [`cookbooks/freecad`](../../cookbooks/freecad/usage.md)。
 
 ## 目录结构
 

@@ -18,16 +18,16 @@
 
 每个能力单独安装 —— 一个 **skill**（让模型知道有这套工具）+ 一个可选的 **MCP server**（工具本体）。
 
-| 能力 | 做什么 | 安装名 |
-|---|---|---|
-| **core** | 基础视觉：动态分辨率读取图片 / 视频 / 文档 / 3D 模型等，外加 OCR、grounding、分割、ASR、视觉对话、联网搜索 | `qwen-mm-plugins-core` |
-| **video-memory** | 长视频记忆：层次化图记忆，支撑超长视频问答 | `qwen-mm-plugins-video-memory` |
-| **video-edit** | 视频剪辑 + 生成：剪辑工作流 + 图片 / 视频 / 音频生成 | `qwen-mm-plugins-video-edit` |
-| **blender** | Blender 三维建模：对一个**正在运行**的 Blender 写 Python（瘦客户端，22 工具）—— 建模 / 材质 / 灯光 / 渲染 | `qwen-mm-plugins-blender` |
-| **freecad** | FreeCAD 参数化 CAD：驱动一个**正在运行**的 FreeCAD（瘦客户端，14 工具）—— 建模、改属性、STEP/STL 导入导出、FEM 分析 | `qwen-mm-plugins-freecad` |
-| **edu-agent** | 讲题视频：把一道数学 / 理科题或题目图片变成一步步讲解的中文视频 / 交互页面（**纯 skill**，无 MCP server） | `qwen-mm-plugins-edu-agent` |
+我们提供了一组 [**cookbooks**](cookbooks/),展示 Qwen3.8-Max + 这些插件的实战效果 —— 每个能力的 cookbook(见下表各行)含完整工具清单、安装与实测案例。
 
-👉 **完整工具目录：** [`docs/zh/capabilities.md`](docs/zh/capabilities.md)。
+| 能力 | 做什么 | 安装名 | Cookbook |
+|---|---|---|---|
+| **core** | 基础视觉：动态分辨率读取图片 / 视频 / 文档 / 3D 模型等，外加 OCR、grounding、分割、ASR、视觉对话、联网搜索 | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
+| **video-memory** | 长视频记忆：层次化图记忆，支撑超长视频问答 | `qwen-mm-plugins-video-memory` | [link](cookbooks/video-memory/usage.md) |
+| **video-edit** | 视频剪辑 + 生成：剪辑工作流 + 图片 / 视频 / 音频生成 | `qwen-mm-plugins-video-edit` | — |
+| **blender** | Blender 三维建模：对一个**正在运行**的 Blender 写 Python（瘦客户端，22 工具）—— 建模 / 材质 / 灯光 / 渲染 | `qwen-mm-plugins-blender` | [link](cookbooks/blender/usage.md) |
+| **freecad** | FreeCAD 参数化 CAD：驱动一个**正在运行**的 FreeCAD（瘦客户端，14 工具）—— 建模、改属性、STEP/STL 导入导出、FEM 分析 | `qwen-mm-plugins-freecad` | [link](cookbooks/freecad/usage.md) |
+| **edu-agent** | 讲题视频：把一道数学 / 理科题或题目图片变成一步步讲解的中文视频 / 交互页面（**纯 skill**，无 MCP server） | `qwen-mm-plugins-edu-agent` | — |
 
 ## 🏗 架构
 
@@ -120,7 +120,7 @@ bash install.sh configure     # 交互式：API key、端点、目录、OSS、�
 @geometry-problem.png  把这道题的解法讲清楚，做成带旁白的视频。
 ```
 
-每个能力的全部工具与详细指南见[完整工具目录](docs/zh/capabilities.md)。
+每个能力的全部工具、安装与实测案例见其 🍳 [cookbook](cookbooks/)。
 
 ## 🧪 开发
 
