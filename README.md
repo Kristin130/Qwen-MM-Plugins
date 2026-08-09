@@ -23,11 +23,11 @@ We ship [**cookbooks**](cookbooks/) of Qwen3.8-Max + these plugins in action —
 | Capability | What it does | Install name | Cookbook |
 |---|---|---|---|
 | **core** | Foundational vision: dynamic-resolution reading of images / videos / documents / 3D models, plus OCR, grounding, segmentation, ASR, vision chat, and web search | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
-| **video-memory** | Long-video memory: a hierarchical graph memory that powers QA over very long videos | `qwen-mm-plugins-video-memory` | [link](cookbooks/video-memory/usage.md) |
-| **video-edit** | Video editing + generation: editing workflows + image / video / audio generation | `qwen-mm-plugins-video-edit` | — |
-| **blender** | Blender 3D modeling: drive a **running** Blender via Python (thin client, 22 tools) — modeling / materials / lighting / rendering | `qwen-mm-plugins-blender` | [link](cookbooks/blender/usage.md) |
-| **freecad** | FreeCAD parametric CAD: drive a **running** FreeCAD (thin client, 14 tools) — modeling, property edits, STEP/STL import/export, FEM analysis | `qwen-mm-plugins-freecad` | [link](cookbooks/freecad/usage.md) |
-| **edu-agent** | Educational tutorial videos: turn a math/science problem or an image into a step-by-step Chinese explainer video / interactive page (**skill-only**, no MCP server) | `qwen-mm-plugins-edu-agent` | — |
+| **video-memory** | Long-video memory: a hierarchical graph memory that powers QA over very long videos | `qwen-mm-plugins-video-memory` | [TBD](cookbooks/video-memory/usage.md) |
+| **video-edit** | Video editing + generation: editing workflows + image / video / audio generation | `qwen-mm-plugins-video-edit` | [TBD](cookbooks/video-edit/usage.md) |
+| **blender** | Blender 3D modeling: drive a **running** Blender via Python (thin client, 22 tools) — modeling / materials / lighting / rendering | `qwen-mm-plugins-blender` | [TBD](cookbooks/blender/usage.md) |
+| **freecad** | FreeCAD parametric CAD: drive a **running** FreeCAD (thin client, 14 tools) — modeling, property edits, STEP/STL import/export, FEM analysis | `qwen-mm-plugins-freecad` | [TBD](cookbooks/freecad/usage.md) |
+| **edu-agent** | Educational tutorial videos: turn a math/science problem or an image into a step-by-step Chinese explainer video / interactive page (**skill-only**, no MCP server) | `qwen-mm-plugins-edu-agent` | [TBD](cookbooks/edu-agent/usage.md) |
 
 ## 🏗 Architecture
 

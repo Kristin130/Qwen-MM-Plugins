@@ -60,8 +60,7 @@ claude plugin install qwen-mm-plugins-core@qwen-mm-plugins
 
 Reads a full promo video, then opens a 35-page PDF and pulls out a specific figure.
 
-▶ **[View the detailed trace in Claude Code](case-core-cc-basic-use.html)**
-<!-- TODO: swap the local link for the published public URL once hosted. -->
+▶ **[View the detailed trace in Claude Code](https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-MM-Plugins/asserts/core/case-core-cc-basic-use.html)**
 
 <p align="center">
   <img src="assets/cc-basic-use.png" alt="Claude Code trace — video + PDF figure" width="520">
@@ -71,8 +70,7 @@ Reads a full promo video, then opens a 35-page PDF and pulls out a specific figu
 
 `@cakes.png` → detect every cake and draw numbered boxes; `@place.png` → identify the location, cross-checked with a web search.
 
-▶ **[View the detailed trace in Codex](case-core-codex-api-use.html)**
-<!-- TODO: swap the local link for the published public URL once hosted. -->
+▶ **[View the detailed trace in Codex](https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-MM-Plugins/asserts/core/case-core-codex-api-use.html)**
 
 
 <p align="center">
