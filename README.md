@@ -47,6 +47,12 @@ curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install
 
 Or run one action at a time — `bash install.sh install` / `configure` / `verify` / `uninstall` (what `configure` and `verify` do is detailed under [Configuration](#-configuration) and [Dependencies](#-dependencies)).
 
+**Windows x64:** use WSL2 (Ubuntu recommended) and clone the repository inside your WSL
+home directory (for example `~/code`), rather than under a mounted Windows drive such as
+`/mnt/c`. Then run the same commands there. WSL2 is currently the only supported Windows
+environment; native Windows has not yet been validated. See the concise
+[Windows notes](docs/en/installation.md#windows-wsl2).
+
 ### By hand (per-harness)
 
 Prefer your harness's own commands — or you're on opencode / pi / QwenPaw, which the installer doesn't cover? Register the skill + MCP yourself.
