@@ -2,6 +2,19 @@
 
 快速路径 —— 插件市场与引导式安装 —— 在 [README](../../README.zh.md#-安装)。本页覆盖**不支持插件直装的 harness**（手动 skill + MCP 安装）、由此产生的工具名前缀、完整依赖参考，以及目录结构。
 
+## Windows（WSL2）
+
+Windows x64 用户推荐安装 Ubuntu WSL2，并在 WSL home 目录中 clone 仓库（例如
+`~/code`），不要放在 `/mnt/c` 这类 Windows 挂载盘下。然后按照 Linux/macOS 的
+相同命令安装。在管理员 PowerShell 中运行：
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+使用 Windows 版 Codex 时，请将 agent 环境设为 WSL2，重启 Codex，并在该 WSL
+环境中安装和使用插件。当前 Windows 仅支持 WSL2；原生 Windows 尚未完成验证。
+
 ## 非市场 harness：直接注册 skill + MCP
 
 没有插件市场的 harness 需要在各自的配置里注册 **skill** 和 **MCP server**。**Qwen Code** 和 **Gemini CLI** 已被[引导式安装器](../../README.zh.md#-安装)自动化（`bash install.sh` → 选对应 harness）；其余（opencode、pi、QwenPaw 等）为手动 —— 见下方各 harness 步骤。其它 harness 最省事的办法是**让 agent 帮你装**（「装一下 `qwen-mm-plugins-<cap>`」）。
