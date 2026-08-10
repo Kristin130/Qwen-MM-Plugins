@@ -25,6 +25,7 @@ image, TTS, and text/image→video. The model can generate assets and stitch the
 
 ```bash
 claude plugin marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
+claude plugin install qwen-mm-plugins-core@qwen-mm-plugins
 claude plugin install qwen-mm-plugins-video-edit@qwen-mm-plugins
 ```
 
