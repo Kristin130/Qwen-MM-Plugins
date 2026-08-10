@@ -64,7 +64,9 @@ TOOL: dict[str, Any] = {
     "description": (
         "Extract frames from a video file with dynamic resolution and FPS. "
         "When fps=0 (default), automatically selects the best sampling rate based on video duration. "
-        "Resolution is automatically adjusted to fit the patch grid."
+        "Resolution is automatically adjusted to fit the patch grid. "
+        "For full source properties (codec, bitrate, native fps, rotation, VFR, audio tracks) — and "
+        "before any clip/edit task — run media_info first."
     ),
     "args": ReadVideoArgs,
 }
@@ -226,11 +228,15 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     first_ts = frames[0][0] if frames else start_time
     last_ts = frames[-1][0] if frames else start_time
+    rotation = info.get("rotation") or 0
+    rotation_note = f" | rotation {rotation}°" if rotation else ""
+    time_range = f"{format_timestamp(first_ts, last_ts)}–{format_timestamp(last_ts, last_ts)}"
     summary = (
-        f"Video: {video_path} | "
-        f"{duration:.1f}s | {len(frames)} frames @ {fps:.1f}fps "
-        f"[{format_timestamp(first_ts, last_ts)}–{format_timestamp(last_ts, last_ts)}] | "
-        f"{target_h}x{target_w} (HxW)"
+        f"Video: {video_path}\n"
+        f"Source: {duration:.1f}s | {info['width']}x{info['height']} (WxH) | "
+        f"{info['native_fps']:.1f} fps native{rotation_note} "
+        f"— call the media_info tool for codecs, bitrate, audio tracks, VFR\n"
+        f"Sampled: {len(frames)} frames @ {fps:.1f} fps | {time_range} | {target_w}x{target_h} (WxH) per frame"
     )
 
     content: list[dict[str, Any]] = [text(summary)]
