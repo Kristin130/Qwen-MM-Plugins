@@ -117,3 +117,34 @@ def sample_video(tmp_path_factory) -> str:
         capture_output=True,
     )
     return str(path)
+
+
+@pytest.fixture(scope="session")
+def sample_media_av(tmp_path_factory) -> str:
+    """A 3s MP4 with both tracks: video (testsrc 160×120 @ 10fps) + audio (440 Hz sine, AAC)."""
+    if not HAS_FFMPEG:
+        pytest.skip("ffmpeg not available")
+    path = tmp_path_factory.mktemp("media") / "sample_av.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=3:size=160x120:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=3",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-shortest",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return str(path)

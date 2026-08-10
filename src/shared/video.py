@@ -54,6 +54,32 @@ def format_timestamp(seconds: float, max_seconds: float) -> str:
         return f"{seconds:.1f}s"
 
 
+def probe_media(path: str) -> dict:
+    """Full ffprobe of a media file (video or audio): container/format info, every stream
+    (video/audio/subtitle/data), and chapters. Returns the parsed ffprobe JSON:
+    ``{"format": {...}, "streams": [...], "chapters": [...]}``.
+    """
+    result = subprocess.run(
+        [
+            find_tool("ffprobe"),
+            "-v",
+            "error",
+            "-show_format",
+            "-show_streams",
+            "-show_chapters",
+            "-of",
+            "json",
+            path,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=FFMPEG_TIMEOUT,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"ffprobe failed: {result.stderr.strip() or 'unknown error'}")
+    return json.loads(result.stdout)
+
+
 def get_video_info(video_path: str) -> dict:
     result = subprocess.run(
         [
@@ -115,8 +141,13 @@ def extract_frames_by_seeking(
     target_h: int,
     target_w: int,
     max_workers: int = SEEK_MAX_WORKERS,
+    quality: int = 2,
 ) -> list[tuple[float, str]]:
-    """Extract frames via parallel keyframe-seeking. Much faster for sparse sampling."""
+    """Extract frames via parallel keyframe-seeking. Much faster for sparse sampling.
+
+    ``quality`` is ffmpeg's mjpeg ``-q:v`` (2 = best, 31 = worst) — raise it when the frames have to
+    fit a byte budget rather than look their best.
+    """
 
     vf = f"scale={target_w}:{target_h}" if target_w > 0 and target_h > 0 else None
     ffmpeg = find_tool("ffmpeg")  # resolve once, not per-frame
@@ -125,7 +156,7 @@ def extract_frames_by_seeking(
         cmd = [ffmpeg, "-nostdin", "-v", "error", "-ss", str(ts), "-i", video_path, "-an", "-frames:v", "1"]
         if vf:
             cmd += ["-vf", vf]
-        cmd += ["-f", "image2pipe", "-vcodec", "mjpeg", "-q:v", "2", "pipe:1"]
+        cmd += ["-f", "image2pipe", "-vcodec", "mjpeg", "-q:v", str(quality), "pipe:1"]
         proc = subprocess.run(cmd, capture_output=True, timeout=FFMPEG_TIMEOUT)
         if proc.returncode == 0 and proc.stdout:
             return (round(ts, 1), base64.b64encode(proc.stdout).decode("ascii"))

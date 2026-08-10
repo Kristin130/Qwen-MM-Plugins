@@ -23,9 +23,10 @@ CONFIG_FILE="${QWEN_MM_CONFIG:-$CONFIG_DIR/config}"
 QMP_DRY=0
 
 # ── capability catalog — the ONE place capabilities are declared; every menu iterates this ──
-CAP_ITEMS=(core video-memory video-edit blender freecad edu-agent)
+CAP_ITEMS=(core video-memory video-edit omni-av blender freecad edu-agent)
 CAP_DESC=("read/visualize any file + OCR, grounding, ASR, vision-chat"
           "hierarchical graph memory for long-video QA"
+          "Omni audio/video understanding: ASR, captioning, grounding, counting"
           "video-edit + image/video/audio generation"
           "drive a running Blender: 3D modeling / materials / render (thin client)"
           "drive a running FreeCAD: parametric CAD / STEP·STL / FEM (thin client)"

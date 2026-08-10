@@ -11,6 +11,7 @@ from conftest import mcp_call
 
 from qwen_mm_plugins_core import get_handler, list_tools
 from qwen_mm_plugins_core.readers import image as image_reader
+from qwen_mm_plugins_core.readers import media_info
 from qwen_mm_plugins_core.readers import video as video_reader
 from qwen_mm_plugins_core.visualizers import visualize
 
@@ -20,6 +21,7 @@ from qwen_mm_plugins_core.visualizers import visualize
 CORE_TOOLS = {
     "read_image",
     "read_video",
+    "media_info",
     "visualize",
     "vision_chat",
     "ocr",
@@ -142,6 +144,44 @@ def test_read_video_subsecond_timestamps(sample_video):
     for s in stamps:
         assert "." in s
         assert parse_time(s.strip("<>")) is not None
+
+
+# ── media_info ────────────────────────────────────────────────────────────────
+
+
+def test_media_info_reports_all_streams(sample_media_av):
+    content = media_info.handle({"path": sample_media_av})
+    assert not _is_error(content)
+    report = content[0]["text"]
+    # container + video stream + audio stream must all be summarized
+    assert "Container:" in report
+    assert "160x120" in report
+    assert "h264" in report
+    assert "10.00 fps" in report
+    assert "Audio stream" in report and "aac" in report
+    assert "44100 Hz" in report or "48000 Hz" in report
+    assert "no audio stream" not in report
+
+
+def test_media_info_flags_missing_audio(sample_video):
+    content = media_info.handle({"path": sample_video})
+    assert not _is_error(content)
+    assert "Audio: none (no audio stream)" in content[0]["text"]
+
+
+def test_media_info_raw_json(sample_video):
+    import json
+
+    content = media_info.handle({"path": sample_video, "raw": True})
+    assert not _is_error(content)
+    raw_blocks = [b for b in content if b["type"] == "text" and b["text"].startswith("Raw ffprobe JSON:")]
+    assert len(raw_blocks) == 1
+    probe = json.loads(raw_blocks[0]["text"].split("\n", 1)[1])
+    assert probe["streams"] and probe["format"]["format_name"]
+
+
+def test_media_info_missing_file():
+    assert _is_error(media_info.handle({"path": "/no/such/file.mp4"}))
 
 
 # ── visualize dispatch ───────────────────────────────────────────────
