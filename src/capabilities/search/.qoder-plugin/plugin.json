@@ -2,7 +2,7 @@
   "name": "qwen-mm-plugins-search",
   "displayName": "Qwen MM Plugins Search",
   "version": "1.0.0",
-  "description": "Web and reverse-image search (Serper) for confirming facts: web_search, web_extractor, image_search as MCP tools.",
+  "description": "Web + reverse-image search to confirm facts: web search, page extraction, reverse image search as MCP tools; currently supports Serper.",
   "skills": "./skill",
   "mcp": ".mcp.json"
 }

@@ -26,8 +26,8 @@ Every tool accepts a local `file_path` or an HTTP(S)/OSS URL and supports `dry_r
 the model request without calling the API. The video tools also accept `fps` and `max_pixels`: raise
 them only when finer temporal or visual detail is worth the extra latency and token cost.
 
-`omni_av_grounding` is temporal — it answers **when** something happens. Core's `grounding` tool is
-spatial — it answers **where** something is inside a still image.
+`omni_av_grounding` is temporal — it answers **when** something happens. The `qwen-mm-plugins-api`
+`grounding` tool is spatial — it answers **where** something is inside a still image.
 
 ---
 
