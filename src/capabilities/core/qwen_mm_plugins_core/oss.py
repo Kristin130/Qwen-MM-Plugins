@@ -1,7 +1,8 @@
 """OSS (Alibaba Object Storage) helpers for the vision tools.
 
-Credentials, signed URLs, local-to-OSS path mapping, and server-side snapshot frames.
-OSS is optional -- tools fall back to local files when unset.
+Local-to-OSS path mapping and server-side snapshot frames. The credential/bucket primitives are
+re-exported from ``shared.oss`` (every capability needs those); this module keeps only the
+vision-specific mapping. OSS is optional -- tools fall back to local files when unset.
 """
 
 from __future__ import annotations
@@ -15,29 +16,12 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from shared.env import get_env
+from shared.oss import bucket as bucket
+from shared.oss import credentials as credentials
+from shared.oss import to_public_endpoint as to_public_endpoint
 
 _CLIP_DURATION = 30.0  # assumed duration (s) of a resolved OSS video object
 _SNAPSHOT_WORKERS = 16
-
-
-def credentials() -> tuple[str, str]:
-    """(access_key_id, access_key_secret) from OSS_AK / OSS_SK."""
-    return get_env("OSS_AK", ""), get_env("OSS_SK", "")
-
-
-def to_public_endpoint(endpoint: str) -> str:
-    """Convert an internal OSS endpoint to a public one."""
-    return endpoint.replace("-internal", "")
-
-
-def bucket(endpoint: str, bucket_name: str):
-    """Return an oss2.Bucket. Raises RuntimeError when credentials are unset."""
-    import oss2
-
-    ak, sk = credentials()
-    if not ak or not sk:
-        raise RuntimeError("OSS credentials not set. Set OSS_AK/OSS_SK, OSS_ENDPOINT, OSS_BUCKET.")
-    return oss2.Bucket(oss2.Auth(ak, sk), to_public_endpoint(endpoint), bucket_name)
 
 
 _EGOLIFE_FILENAME_RE = re.compile(r"^(DAY\d+)_(.+?)_(\d{5,})\.\w+$", re.IGNORECASE)

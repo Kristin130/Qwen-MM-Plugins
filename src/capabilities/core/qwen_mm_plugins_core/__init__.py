@@ -21,7 +21,7 @@ transport = streaming_stdio_server
 # mcp_framework for the full field contract.
 SYSTEM_DEPS = [
     {
-        "label": "read_video / transcribe_audio (video & audio)",
+        "label": "read_video / media_info / transcribe_audio (video & audio)",
         "tools": ["ffmpeg", "ffprobe"],
         "hint": "apt install ffmpeg   |   brew install ffmpeg",
     },

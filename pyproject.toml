@@ -59,19 +59,21 @@ viz = [
 ]
 video-memory = ["numpy<3", "requests"]        # long-video graph-memory server
 video-edit = ["dashscope>=1.25.16", "requests"]  # image/video/audio generation server
+omni-av = ["openai", "requests"]              # Omni audio/video tools (caption/ASR family/grounding/counting)
 example = ["openai"]                           # template capability — base deps + openai (for the `describe` API demo)
-oss = ["oss2"]                                 # optional: serve large videos/frames by signed OSS URL (core OSS_VIDEO_BUCKET + memory-build clip upload)
+oss = ["oss2"]                                 # optional: serve large media by signed OSS URL (core OSS_VIDEO_BUCKET, memory-build clip upload, omni-av oversized-video upload)
 blender = []                                   # Blender live-session MCP client (stdlib socket; needs a running Blender + addon)
 freecad = []                                   # FreeCAD live-session MCP client (stdlib xml-rpc; needs a running FreeCAD + addon)
 # profiles — install ONE. `core` bundles all of visualize; `all` layers the other servers on top.
 core = ["qwen-mm-plugins[api,viz]"]
 memory = ["qwen-mm-plugins[core,video-memory]"]
-all = ["qwen-mm-plugins[core,video-memory,video-edit,blender,freecad]"]
+all = ["qwen-mm-plugins[core,video-memory,omni-av,video-edit,blender,freecad]"]
 
 [project.scripts]
 qwen-mm-plugins-core = "qwen_mm_plugins_core.__main__:main"
 qwen-mm-plugins-video-memory = "qwen_mm_plugins_video_memory.__main__:main"
 qwen-mm-plugins-video-edit = "qwen_mm_plugins_video_edit.__main__:main"
+qwen-mm-plugins-omni-av = "qwen_mm_plugins_omni_av.__main__:main"
 qwen-mm-plugins-example = "qwen_mm_plugins_example.__main__:main"
 qwen-mm-plugins-blender = "qwen_mm_plugins_blender.__main__:main"
 qwen-mm-plugins-freecad = "qwen_mm_plugins_freecad.__main__:main"
@@ -97,13 +99,14 @@ py-modules = ["mcp_framework"]
 qwen_mm_plugins_core = "src/capabilities/core/qwen_mm_plugins_core"
 qwen_mm_plugins_video_memory = "src/capabilities/video-memory/qwen_mm_plugins_video_memory"
 qwen_mm_plugins_video_edit = "src/capabilities/video-edit/qwen_mm_plugins_video_edit"
+qwen_mm_plugins_omni_av = "src/capabilities/omni-av/qwen_mm_plugins_omni_av"
 qwen_mm_plugins_example = "src/capabilities/example/qwen_mm_plugins_example"
 qwen_mm_plugins_blender = "src/capabilities/blender/qwen_mm_plugins_blender"
 qwen_mm_plugins_freecad = "src/capabilities/freecad/qwen_mm_plugins_freecad"
 shared = "src/shared"
 
 [tool.setuptools.packages.find]
-where = ["src/capabilities/core", "src/capabilities/video-memory", "src/capabilities/video-edit", "src/capabilities/example", "src/capabilities/blender", "src/capabilities/freecad", "src"]
+where = ["src/capabilities/core", "src/capabilities/video-memory", "src/capabilities/video-edit", "src/capabilities/omni-av", "src/capabilities/example", "src/capabilities/blender", "src/capabilities/freecad", "src"]
 include = ["qwen_mm_plugins*", "shared*"]
 
 # The vendored live-session addons ship as package DATA (not importable subpackages — no __init__ on

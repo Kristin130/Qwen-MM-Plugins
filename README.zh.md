@@ -24,6 +24,7 @@
 |---|---|---|---|
 | **core** | 基础视觉：动态分辨率读取图片 / 视频 / 文档 / 3D 模型等，外加 OCR、grounding、分割、ASR、视觉对话、联网搜索 | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
 | **video-memory** | 长视频记忆：层次化图记忆，支撑超长视频问答 | `qwen-mm-plugins-video-memory` | [link](cookbooks/video-memory/usage.md) |
+| **omni-av** | Omni 原生音视频理解：带时间戳或说话人标签的 ASR、分段描述、时序定位、事件计数与音乐标签 | `qwen-mm-plugins-omni-av` | [link](cookbooks/omni-av/usage.md) |
 | **video-edit** | 视频剪辑 + 生成：剪辑工作流 + 图片 / 视频 / 音频生成 | `qwen-mm-plugins-video-edit` | — |
 | **blender** | Blender 三维建模：对一个**正在运行**的 Blender 写 Python（瘦客户端，22 工具）—— 建模 / 材质 / 灯光 / 渲染 | `qwen-mm-plugins-blender` | [link](cookbooks/blender/usage.md) |
 | **freecad** | FreeCAD 参数化 CAD：驱动一个**正在运行**的 FreeCAD（瘦客户端，14 工具）—— 建模、改属性、STEP/STL 导入导出、FEM 分析 | `qwen-mm-plugins-freecad` | [link](cookbooks/freecad/usage.md) |
@@ -56,7 +57,7 @@ curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install
 
 想用 harness 自己的命令，或你在 opencode / pi / QwenPaw 上（安装器不覆盖这几个）？那就自己注册 skill + MCP。
 
-**有插件市场的 harness**（Claude Code · Qoder · Codex · OpenClaw · Qwen Code）—— 加市场，再装某个能力（把 `<cap>` 换成 `core` / `video-memory` / `video-edit` / `blender` / `freecad`）：
+**有插件市场的 harness**（Claude Code · Qoder · Codex · OpenClaw · Qwen Code）—— 加市场，再装某个能力（把 `<cap>` 换成 `core` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`）：
 
 ```bash
 # Claude Code
@@ -86,7 +87,7 @@ qwen extensions install https://github.com/QwenLM/Qwen-MM-Plugins.git:qwen-mm-pl
 
 API 类工具需要 key —— 原生读图 / 视频 / 文档不需要：
 
-- `DASHSCOPE_API_KEY` —— `vision_chat` / `ocr` / `grounding` / `transcribe_audio` / 生成类 / video-memory 构建
+- `DASHSCOPE_API_KEY` —— `vision_chat` / `ocr` / `grounding` / `transcribe_audio` / Omni 音视频理解 / 生成类 / video-memory 构建
 - `SERPER_API_KEY` —— `web_search` / `web_extractor` / `image_search`
 
 在 shell 里 export，或写进 `~/.qwen-mm-plugins/config`（仅当变量未在环境中时才读取 —— 这样 GUI 启动的 harness 也能拿到）。引导式安装器的 Configure 步骤会帮你写这个文件：
@@ -110,6 +111,11 @@ bash install.sh configure     # 交互式：API key、端点、目录、OSS、�
 
 # video-memory —— 对长视频提问；首次提问自动构建 memory
 @lecture-2h.mp4        这段视频的主要观点是什么？带上时间戳。
+
+# omni-av —— 用 Qwen-Omni 理解短音视频
+@meeting.mp4           带说话人标签和时间戳转写这段会议。
+@sports-clip.mp4       统计每次成功传球，并列出发生时间。
+@song.mp3              标注曲风、情绪、乐器、调性和人声特征。
 
 # video-edit —— 图片 / 视频 / 音频生成 + 剪辑工作流
                        生成一张 1024×1024 的图：小熊猫在深夜敲代码。

@@ -19,6 +19,11 @@
       "description": "ffmpeg-based video-editing workflows (skill) + image/video/audio generation as MCP tools."
     },
     {
+      "name": "qwen-mm-plugins-omni-av",
+      "source": "./src/capabilities/omni-av",
+      "description": "Omni-model audio/video understanding: segmented captioning with timestamps, ASR (plain / controllable / multi-speaker diarized), temporal grounding, and event counting as MCP tools."
+    },
+    {
       "name": "qwen-mm-plugins-edu-agent",
       "source": "./src/capabilities/edu-agent",
       "description": "Educational tutorial-video generator (skill only): turn a math/science problem or image into a step-by-step Chinese explainer video or interactive page."

@@ -24,6 +24,7 @@ We ship [**cookbooks**](cookbooks/) of Qwen3.8-Max + these plugins in action —
 |---|---|---|---|
 | **core** | Foundational vision: dynamic-resolution reading of images / videos / documents / 3D models, plus OCR, grounding, segmentation, ASR, vision chat, and web search | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
 | **video-memory** | Long-video memory: a hierarchical graph memory that powers QA over very long videos | `qwen-mm-plugins-video-memory` | [TBD](cookbooks/video-memory/usage.md) |
+| **omni-av** | Omni-native audio/video understanding: ASR with optional timestamps and speaker labels, temporal captioning/grounding, event counting, and music tagging | `qwen-mm-plugins-omni-av` | [TBD](cookbooks/omni-av/usage.md) |
 | **video-edit** | Video editing + generation: editing workflows + image / video / audio generation | `qwen-mm-plugins-video-edit` | [TBD](cookbooks/video-edit/usage.md) |
 | **blender** | Blender 3D modeling: drive a **running** Blender via Python (thin client, 22 tools) — modeling / materials / lighting / rendering | `qwen-mm-plugins-blender` | [TBD](cookbooks/blender/usage.md) |
 | **freecad** | FreeCAD parametric CAD: drive a **running** FreeCAD (thin client, 14 tools) — modeling, property edits, STEP/STL import/export, FEM analysis | `qwen-mm-plugins-freecad` | [TBD](cookbooks/freecad/usage.md) |
@@ -57,7 +58,7 @@ environment; native Windows has not yet been validated. See the concise
 
 Prefer your harness's own commands — or you're on opencode / pi / QwenPaw, which the installer doesn't cover? Register the skill + MCP yourself.
 
-**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw · Qwen Code) — add the marketplace, then install a capability (replace `<cap>` with `core` / `video-memory` / `video-edit` / `blender` / `freecad`):
+**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw · Qwen Code) — add the marketplace, then install a capability (replace `<cap>` with `core` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`):
 
 ```bash
 # Claude Code
@@ -87,7 +88,7 @@ qwen extensions install https://github.com/QwenLM/Qwen-MM-Plugins.git:qwen-mm-pl
 
 The API-based tools need a key — native image / video / document reading doesn't:
 
-- `DASHSCOPE_API_KEY` — `vision_chat` / `ocr` / `grounding` / `transcribe_audio` / generation / video-memory build
+- `DASHSCOPE_API_KEY` — `vision_chat` / `ocr` / `grounding` / `transcribe_audio` / Omni audio-video understanding / generation / video-memory build
 - `SERPER_API_KEY` — `web_search` / `web_extractor` / `image_search`
 
 Export them in your shell, or persist them to `~/.qwen-mm-plugins/config` (read whenever a var isn't already in the environment — so GUI-launched harnesses pick them up too). The guided installer's Configure step writes that file for you:
@@ -111,6 +112,11 @@ Once a capability is installed, reference a file in your harness and just ask �
 
 # video-memory — QA over long videos; the first query auto-builds memory
 @lecture-2h.mp4        What are the main points, with timestamps?
+
+# omni-av — short-clip audio/video understanding with Qwen-Omni
+@meeting.mp4           Transcribe this with speaker labels and timestamps.
+@sports-clip.mp4       Count every completed pass and list when each one occurs.
+@song.mp3              Tag the genre, mood, instruments, key, and vocal profile.
 
 # video-edit — image / video / audio generation + editing workflows
                        Generate a 1024×1024 image of a red panda coding at night.

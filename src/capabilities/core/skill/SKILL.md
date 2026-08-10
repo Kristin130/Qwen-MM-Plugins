@@ -15,6 +15,7 @@ Native reading (feeds content directly to you):
 - **See a file** (PDF, Office, CSV, code, notebook, 3D, ...) → `visualize`
 - **Read an image** with dynamic resolution → `read_image`
 - **Read a video** (extract frames) → `read_video`
+- **Get media metadata** (duration, resolution, fps, codecs, bitrate, audio/video/subtitle tracks, chapters) → `media_info`
 - **Save specific frame(s)** of a video to file (for image_search) → `save_view` (pass `times=[...]`)
 
 Producing / annotating (writes an image file):
@@ -55,7 +56,7 @@ Use `pages` for page ranges, `budget` for resolution, `max_pages` to cap output.
 
 **Resolution budgets**: `small` for preview, `normal` (~1024) default, `large` for fine detail.
 
-**Video strategy**: `fps=0` auto-selects. Skim with `fps=1, budget="normal"` in 5-min chunks, then detail with `fps=2, budget="large"` on interesting segments. Use `start_time`/`end_time` for windowing.
+**Video strategy**: `fps=0` auto-selects. Skim with `fps=1, budget="normal"` in 5-min chunks, then detail with `fps=2, budget="large"` on interesting segments. Use `start_time`/`end_time` for windowing. Before any editing/clipping task, run `media_info` first to learn the source properties (codecs, tracks, fps, rotation).
 
 **Vision chat**: pass `images`/`videos` + `text` prompt. Default model `qwen3.7-plus`. Use `dry_run=true` to inspect payloads. Details in `references/vision_chat.md`.
 
