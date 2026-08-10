@@ -6,7 +6,7 @@
     {
       "name": "qwen-mm-plugins-core",
       "source": "./src/capabilities/core",
-      "description": "Local file I/O: dynamic-resolution read of images/videos/docs/3D + visualize, crop, and bounding-box annotation as MCP tools. No API key."
+      "description": "Local file I/O: dynamic-resolution read of images/videos/docs/3D + visualize, crop, and bounding-box annotation as MCP tools."
     },
     {
       "name": "qwen-mm-plugins-api",

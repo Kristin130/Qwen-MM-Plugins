@@ -24,7 +24,7 @@ QMP_DRY=0
 
 # ── capability catalog — the ONE place capabilities are declared; every menu iterates this ──
 CAP_ITEMS=(core api search video-memory video-edit omni-av blender freecad edu-agent)
-CAP_DESC=("read/visualize any file locally — images/video/docs/3D (no API key)"
+CAP_DESC=("read/visualize any local file — images, video, docs, 3D"
           "cloud VL APIs: vision_chat, ocr, grounding, segmentation, ASR"
           "web + reverse-image search (Serper) to confirm facts"
           "hierarchical graph memory for long-video QA"
