@@ -185,6 +185,22 @@ qwenpaw skills config    # 交互勾选启用
 
 > 网络边界：`npx hyperframes init` 和 TTS 调用需联网；**渲染本身是离线的**（所以字体 / KaTeX / GSAP 要自托管进 `dist/`）。完整清单见该 skill 的 `SKILL.md` → "Prerequisites（环境准备）"。
 
+### cua 例外：passthrough 到外部二进制（cua-driver）
+
+`qwen-mm-plugins-cua` **自身不含 MCP server**，也**不是** `uvx` extra（没有 `[cua]` profile）。它是一个 passthrough：插件清单把 [trycua/cua](https://github.com/trycua/cua)（MIT）的 **Cua Driver** 二进制注册为 MCP server `cua-computer-use`，给 agent **整个桌面**的 computer-use —— 后台启动并操控**任意**原生 GUI 应用（不只是浏览器）。所以「装插件无需手动步骤」对它**不适用**：必须先装好 `cua-driver` 二进制。
+
+| 依赖 | 作用 | 安装 / 检查 |
+|------|--------|-----------------|
+| **`cua-driver`** 二进制（在 `PATH` 上） | 整个能力（MCP server 就是 `cua-driver mcp`） | `/bin/bash -c "$(curl -fsSL https://cua.ai/driver/install.sh)"` —— 装到 `~/.local/bin`（跨平台、免管理员）。`cua-driver --version` 检查。 |
+| **macOS：辅助功能 + 屏幕录制** | 操控(辅助功能)与看屏(屏幕录制) | `open -n -g -a CuaDriver --args serve` 后 `cua-driver permissions grant`；`cua-driver permissions status` 核对。两者都是按宿主 App 记的系统授权，无法程序化设置。 |
+| **一块真实的屏** | 任何窗口驱动工具 | 本地桌面（先 macOS）或隔离桌面 VM（cua + Lume）。**无头**机器上 `cua-driver doctor` 会警告 `DISPLAY`/`WAYLAND_DISPLAY` 未设、驱动失败——无头服务器没有屏可驱动。Linux：X11 可用；Wayland 为 BETA。 |
+
+说明：
+- 清单里用的是 `command: "cua-driver"`（相对 `PATH`，安装器会放到那）。非标准安装路径请改用绝对路径,或运行 `cua-driver mcp-config --client claude` 直接注册。
+- 无需额外 API Key：驱动的「大脑」就是你 agent harness 已在用的模型。`CUA_API_KEY` 和 Lume VM 只用于 cua 的云/沙箱目标，本地驱动这条路用不到。
+- 驱动**默认**发送无内容的产品遥测——`cua-driver telemetry disable` 关闭。
+- 完整驱动文档、权限模式(`standard` / `bounded` / `unrestricted`)、以及它自带的 turnkey Claude Code skill(`cua-driver skills install`)：见 [cua 文档](https://cua.ai/docs)。
+
 ### 环境变量
 
 配置从 shell 环境读取，其次回退到 `~/.qwen-mm-plugins/config`（每行一个 KEY=VALUE，仅当变量未在环境中时才读取——这样 GUI 启动的 harness 也能拿到）。实际上通常只需要上面那两个 API Key，其余都可选。要编辑该文件，运行安装器的 **Configure** 项或 `<entry> --setup`——两者现在都会按分类（凭据、目录/上限、video-memory、OSS、Blender/FreeCAD 主机、edu-agent）浏览并编辑**整份**配置，而不再只是 API Key。自动化场景用 `<entry> --set KEY=VALUE …` / `<entry> --unset KEY …`。
@@ -214,6 +230,7 @@ src/
 │   ├── video-edit/          #     视频剪辑 + 图片/视频/音频生成
 │   ├── blender/             #     Blender 瘦客户端（随包 addon：vendor/ + --launch-app）
 │   ├── freecad/             #     FreeCAD 瘦客户端（随包 addon：vendor/ + --launch-app）
+│   ├── cua/                 #     computer-use passthrough → 外部 cua-driver（清单 + skill，无 server）
 │   └── example/             #     模板：skill + tools
 ├── shared/                  #   共享库（env/content/image/video/cache/syscmd/api_openai/api_dashscope 等可复用代码）
 └── mcp_framework.py         #   共享框架（工具自动注册 + FastMCP serve）

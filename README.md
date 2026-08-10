@@ -30,6 +30,7 @@ We ship [**cookbooks**](cookbooks/) of Qwen3.8-Max + these plugins in action —
 | **blender** | Blender 3D modeling: drive a **running** Blender via Python (thin client, 22 tools) — modeling / materials / lighting / rendering | `qwen-mm-plugins-blender` | [TBD](cookbooks/blender/usage.md) |
 | **freecad** | FreeCAD parametric CAD: drive a **running** FreeCAD (thin client, 14 tools) — modeling, property edits, STEP/STL import/export, FEM analysis | `qwen-mm-plugins-freecad` | [TBD](cookbooks/freecad/usage.md) |
 | **edu-agent** | Educational tutorial videos: turn a math/science problem or an image into a step-by-step Chinese explainer video / interactive page (**skill-only**, no MCP server) | `qwen-mm-plugins-edu-agent` | [TBD](cookbooks/edu-agent/usage.md) |
+| **cua** | Computer-use for the **local desktop**: drive **any** native GUI app (launch, click, type, scroll, verify — whole desktop, not just the browser) in the background, via trycua/cua's Cua Driver (**passthrough**; needs the external `cua-driver` binary — see [installation](docs/en/installation.md)) | `qwen-mm-plugins-cua` | [TBD](cookbooks/cua/usage.md) |
 
 ## 🏗 Architecture
 

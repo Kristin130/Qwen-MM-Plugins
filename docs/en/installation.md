@@ -187,6 +187,22 @@ How to see which system tools are missing:
 
 > Network boundary: `npx hyperframes init` and the TTS calls need internet; the **render itself is offline** (so fonts / KaTeX / GSAP are self-hosted into `dist/`). Full checklist: the skill's `SKILL.md` → "Prerequisites".
 
+### cua exception: passthrough to an external binary (cua-driver)
+
+`qwen-mm-plugins-cua` ships **no MCP server of its own** and is **not** a `uvx` extra (there is no `[cua]` profile). It is a passthrough: its plugin manifest registers the external **Cua Driver** binary from [trycua/cua](https://github.com/trycua/cua) (MIT) as the MCP server `cua-computer-use`, giving the agent **whole-desktop** computer-use — launch and drive **any** native GUI app in the background (not just the browser). So the "installing a plugin needs no manual step" rule does **not** apply: the `cua-driver` binary must be installed first.
+
+| Dependency | Powers | Install / check |
+|------|--------|-----------------|
+| **`cua-driver`** binary (on `PATH`) | the whole capability (the MCP server *is* `cua-driver mcp`) | `/bin/bash -c "$(curl -fsSL https://cua.ai/driver/install.sh)"` — installs to `~/.local/bin` (cross-OS, no admin). `cua-driver --version` to check. |
+| **macOS: Accessibility + Screen Recording** | driving (Accessibility) and seeing (Screen Recording) the desktop | `open -n -g -a CuaDriver --args serve` then `cua-driver permissions grant`; verify with `cua-driver permissions status`. Both are OS grants, per host app, and cannot be set programmatically. |
+| **A real display** | any window-driving tool | Local desktop (macOS first) or an isolated desktop VM (cua + Lume). On a **headless** box `cua-driver doctor` warns `DISPLAY`/`WAYLAND_DISPLAY` unset and driving fails — a headless server has no screen to drive. Linux: X11 works; Wayland is BETA. |
+
+Notes:
+- The manifest uses `command: "cua-driver"` (relative to `PATH`, where the installer puts it). For a non-standard install, override with an absolute path, or run `cua-driver mcp-config --client claude` to register it directly.
+- No extra API key: the driving model is whatever your agent harness already uses. `CUA_API_KEY` and Lume VMs are only for cua's cloud/sandbox targets, not this local-driver path.
+- The driver sends content-free product telemetry **by default** — `cua-driver telemetry disable` turns it off.
+- Full driver docs, permission modes (`standard` / `bounded` / `unrestricted`), and its own turnkey Claude Code skill (`cua-driver skills install`): the [cua docs](https://cua.ai/docs).
+
 ### Environment variables
 
 Config is read from the shell environment, falling back to `~/.qwen-mm-plugins/config` (KEY=VALUE lines, read when a var isn't already in the environment — so GUI-launched harnesses pick it up too). In practice only the two API keys above are commonly needed; everything else is optional. To edit that file, run the installer's **Configure** action or `<entry> --setup` — both now browse & edit the **whole** config grouped by category (credentials, dirs/limits, video-memory, OSS, Blender/FreeCAD hosts, edu-agent), not just the API key. For automation: `<entry> --set KEY=VALUE …` / `<entry> --unset KEY …`.
@@ -216,6 +232,7 @@ src/
 │   ├── video-edit/          #     video editing + image/video/audio generation
 │   ├── blender/             #     Blender thin client (bundled addon: vendor/ + --launch-app)
 │   ├── freecad/             #     FreeCAD thin client (bundled addon: vendor/ + --launch-app)
+│   ├── cua/                 #     computer-use passthrough → external cua-driver (manifest + skill, no server)
 │   └── example/             #     template: skill + tools
 ├── shared/                  #   shared library (reusable code: env/content/image/video/cache/syscmd/api_openai/api_dashscope …)
 └── mcp_framework.py         #   shared framework (tool auto-registration + FastMCP serve)
