@@ -9,8 +9,10 @@ from mcp_framework import build_registry
 
 from .stdio_streaming import streaming_stdio_server
 
-# Auto-discover tools from these subpackages.
-SPECS, get_handler, list_tools = build_registry(__name__, ["readers", "visualizers", "apis", "producers"])
+# Auto-discover tools from these subpackages. Cloud API tools live in the qwen-mm-plugins-api
+# (vision_chat/ocr/grounding/segmentation/transcribe_audio) and qwen-mm-plugins-search
+# (web_search/web_extractor/image_search) capabilities — core is local file I/O only.
+SPECS, get_handler, list_tools = build_registry(__name__, ["readers", "visualizers", "producers"])
 
 # Streaming stdio transport — keeps peak memory near one frame for large read_video results.
 transport = streaming_stdio_server
@@ -21,7 +23,7 @@ transport = streaming_stdio_server
 # mcp_framework for the full field contract.
 SYSTEM_DEPS = [
     {
-        "label": "read_video / media_info / transcribe_audio (video & audio)",
+        "label": "read_video / media_info (video & audio)",
         "tools": ["ffmpeg", "ffprobe"],
         "hint": "apt install ffmpeg   |   brew install ffmpeg",
     },

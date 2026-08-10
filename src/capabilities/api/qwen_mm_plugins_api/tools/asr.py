@@ -19,7 +19,7 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from qwen_mm_plugins_core import oss
+from shared import oss
 from shared.content import text_error
 from shared.env import get_env
 from shared.syscmd import find_tool

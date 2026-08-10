@@ -6,6 +6,7 @@ and resvg_py are imported inside functions so this module is import-safe at star
 
 from __future__ import annotations
 
+import base64
 import glob
 import io
 import logging
@@ -14,7 +15,7 @@ import os
 import sys
 from typing import Any
 
-from shared.env import DEFAULT_BUDGET, TOKEN_SIZE
+from shared.env import DEFAULT_BUDGET, IMAGE_BUDGET_TOKENS, IMAGE_MIN_PIXELS, TOKEN_SIZE
 
 # Distinct palette for annotating multiple boxes.
 COLORS = [
@@ -180,3 +181,50 @@ def smart_resize(
     height = max(factor, round(height / factor) * factor)
     width = max(factor, round(width / factor) * factor)
     return height, width
+
+
+def process_image(img, min_pixels: int, max_pixels: int):
+    """Resize a PIL Image to fit patch grid and pixel budget.
+
+    Returns (resized_img, b64_str, target_w, target_h, mime_type).
+    """
+    from PIL import Image
+
+    orig_w, orig_h = img.size
+
+    target_h, target_w = smart_resize(
+        orig_h,
+        orig_w,
+        min_pixels,
+        max_pixels,
+    )
+
+    resized = img
+    if (target_w, target_h) != (orig_w, orig_h):
+        resized = img.resize((target_w, target_h), Image.LANCZOS)
+
+    buf = io.BytesIO()
+    # JPEG only handles RGB/L — keep palette/alpha as PNG; convert exotic modes to RGB.
+    if img.mode in ("RGBA", "LA", "PA", "P"):
+        fmt, mime, save_kwargs = "PNG", "image/png", {}
+    else:
+        fmt, mime, save_kwargs = "JPEG", "image/jpeg", {"quality": 90}
+        if resized.mode not in ("RGB", "L"):
+            resized = resized.convert("RGB")
+    resized.save(buf, format=fmt, **save_kwargs)
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+
+    return resized, b64, target_w, target_h, mime
+
+
+def render_image_block(img, budget: str = "large") -> tuple[dict[str, str], int, int]:
+    """Resize a PIL Image to the token budget and return (image block, width, height)."""
+    max_pixels = budget_to_pixels(budget, IMAGE_BUDGET_TOKENS)
+    _, b64, w, h, mime = process_image(img, IMAGE_MIN_PIXELS, max_pixels)
+    return {"type": "image", "data": b64, "mimeType": mime}, w, h
+
+
+def image_to_content(img, budget: str = "large") -> dict[str, str]:
+    """Convert a PIL Image to an MCP image content block (resized to budget)."""
+    block, _w, _h = render_image_block(img, budget)
+    return block

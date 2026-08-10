@@ -19,7 +19,7 @@ wsl --install -d Ubuntu
 
 没有插件市场的 harness 需要在各自的配置里注册 **skill** 和 **MCP server**。**Qwen Code** 和 **Gemini CLI** 已被[引导式安装器](../../README.zh.md#-安装)自动化（`bash install.sh` → 选对应 harness）；其余（opencode、pi、QwenPaw 等）为手动 —— 见下方各 harness 步骤。其它 harness 最省事的办法是**让 agent 帮你装**（「装一下 `qwen-mm-plugins-<cap>`」）。
 
-每个能力都是 `qwen-mm-plugins-<cap>`、uvx extras 为 `[<cap>]`；下面每个块里把 `<cap>` 换成具体能力名（`core` / `video-memory` / `video-edit` / `blender` / `freecad`）。
+每个能力都是 `qwen-mm-plugins-<cap>`、uvx extras 为 `[<cap>]`；下面每个块里把 `<cap>` 换成具体能力名（`core` / `api` / `search` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`）。
 
 Claude Code 也可以走手动安装 —— 和插件市场的区别只在工具名：插件市场装的带 plugin 前缀 + server key（就是能力自己的名字，例如 `qwen-mm-plugins-<cap>`），手动 `mcp add` 用你自定义的 server name。以某个能力的 `read_image` 为例：
 

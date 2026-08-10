@@ -1,0 +1,8 @@
+{
+  "name": "qwen-mm-plugins-api",
+  "displayName": "Qwen MM Plugins API",
+  "version": "1.0.0",
+  "description": "Cloud vision-language APIs for understanding media: vision_chat (caption/VQA), ocr, grounding, transcribe_audio (DashScope) and segmentation (SAM3) as MCP tools.",
+  "skills": "./skill",
+  "mcp": ".mcp.json"
+}

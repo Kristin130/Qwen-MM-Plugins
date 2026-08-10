@@ -1,10 +1,13 @@
-"""Hermetic unit tests for the core API tool handlers (apis/*.py).
+"""Hermetic unit tests for the api + search tool handlers.
 
-These tools normally hit an external endpoint (DashScope OpenAI-compatible, Serper,
-a SAM3 server). The handlers all import their network boundary lazily *inside*
-`handle`, so — exactly like test_api_clients.py — monkeypatching the module attribute
-(`call_openai_chat`, `serper.post_serper`, `requests.post`) is enough to exercise the
-handler with NO live network and NO API key. Nothing here should ever touch the wire.
+Understanding tools live in the qwen-mm-plugins-api capability
+(qwen_mm_plugins_api.tools: vision_chat / ocr / grounding / segmentation / asr); web +
+reverse-image search lives in qwen-mm-plugins-search (qwen_mm_plugins_search.tools +
+its serper client). These tools normally hit an external endpoint (DashScope
+OpenAI-compatible, Serper, a SAM3 server). The handlers all import their network boundary
+lazily *inside* `handle`, so — exactly like test_api_clients.py — monkeypatching the module
+attribute (`call_openai_chat`, `serper.post_serper`, `requests.post`) is enough to exercise
+the handler with NO live network and NO API key. Nothing here should ever touch the wire.
 
 Split into three layers:
   Tier 1 — pure functions (parsers/formatters): zero mocks.
@@ -21,19 +24,21 @@ import types
 
 import pytest
 
-# Collection guard: importing qwen_mm_plugins_core pulls in stdio_streaming → the `mcp` SDK.
-# Without this, a missing `mcp` fails COLLECTION of the whole file (31 errors) instead of skipping.
+# Collection guard: importing the api/search packages runs build_registry → the `mcp` SDK.
+# Without this, a missing `mcp` fails COLLECTION of the whole file instead of skipping.
 pytest.importorskip("mcp")
 
 import shared.api_openai as oa  # noqa: E402  (import after the importorskip guard)
-from qwen_mm_plugins_core import serper  # noqa: E402
-from qwen_mm_plugins_core.apis import (  # noqa: E402
+from qwen_mm_plugins_api.tools import (  # noqa: E402
     asr,
     grounding,
-    image_search,
     ocr,
     segmentation,
     vision_chat,
+)
+from qwen_mm_plugins_search import serper  # noqa: E402
+from qwen_mm_plugins_search.tools import (  # noqa: E402
+    image_search,
     web_extractor,
     web_search,
 )
