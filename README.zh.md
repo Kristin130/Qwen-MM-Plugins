@@ -105,11 +105,16 @@ bash install.sh configure     # 交互式：API key、端点、目录、OSS、�
 装好某个能力后，在 harness 里引用文件直接提问，模型会自动调用对应工具。读取是**动态分辨率**的：每张图片、每帧视频、每页文档都会自动缩放到 VL 模型的 patch grid —— 一张 4K 截图上的细小文字和一张小缩略图都能以各自需要的清晰度读进来，无需手动缩放。
 
 ```text
-# core —— 读图片 / 视频 / 文档 / 3D 模型，外加 OCR · grounding · 分割 · ASR · 联网搜索
+# core —— 读图片 / 视频 / 文档 / 3D 模型（本地、动态分辨率）
 @dashboard-4k.png      读出这张仪表盘里的每一个数字。
 @report.pdf            总结第 3 页。
+
+# api —— 云端 VL API：caption / OCR / grounding / 分割 / ASR
 @receipt.jpg           OCR 这张小票并把各行金额加总。
 @street.jpg            把画面里每一辆车都框出来。               # grounding
+
+# search —— 联网 + 反查图，核实画面里的东西
+@place.jpg             这张照片是在哪拍的？                     # image_search + web_search
 
 # video-memory —— 对长视频提问；首次提问自动构建 memory
 @lecture-2h.mp4        这段视频的主要观点是什么？带上时间戳。

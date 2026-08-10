@@ -1,36 +1,40 @@
-# Cookbook — Qwen-MM-Plugins Core
+# Cookbook — Qwen-MM-Plugins Core (+ api / search)
 
-The foundational vision capability, `qwen-mm-plugins-core`: dynamic-resolution reading of images /
-videos / documents, plus OCR, grounding, segmentation, ASR, vision chat, and web search. See the
-[Cases](#cases) below for worked examples.
+`qwen-mm-plugins-core` is the local file capability: dynamic-resolution reading of images / videos /
+documents / 3D, plus visualize, crop, and bounding-box annotation. The cloud model/API tools that
+used to live here now ship as two sibling capabilities — `qwen-mm-plugins-api` (caption/OCR/grounding/
+segmentation/ASR) and `qwen-mm-plugins-search` (web + reverse-image search). This cookbook covers the
+family; the tool list below marks which plugin each tool belongs to. See the [Cases](#cases) below
+for worked examples.
 
 ---
 
 ## Tools
 
-**Reading (content fed directly to the model)**
+**`qwen-mm-plugins-core` — local reading (content fed directly to the model)**
 - `read_image` — dynamic-resolution image reading
 - `read_video` — extracts video frames with automatic FPS / resolution
+- `media_info` — full media metadata via ffprobe (run before any clip/edit)
 - `visualize` — general-purpose file visualization: PDF / Office / CSV / code / SVG / DrawIO / 3D / GIS / Notebook / LaTeX
 
-**Multimodal APIs (DashScope)**
+**`qwen-mm-plugins-core` — image / frame output (saved to file + preview)**
+- `crop` — crop an image by box (normed to 0-1000)
+- `draw_bbox` — draw annotation boxes on an image (pairs with `grounding`)
+- `save_view` — extract document pages / video frames into standalone image files
+
+**`qwen-mm-plugins-api` — cloud understanding (DashScope + SAM3)**
 - `vision_chat` — call a vlm (default: qwen3.7-plus) for vision chat, supporting image / video input
 - `ocr` — text recognition in images
 - `grounding` — object detection/localization, returning pixel bboxes (pairs with `draw_bbox`)
 - `segmentation` — text-prompted segmentation (self-hosted SAM3)
 - `transcribe_audio` — speech recognition (default: qwen3-asr), output as SRT / text / JSON
 
-**Image / frame output (saved to file + preview)**
-- `crop` — crop an image by box (normed to 0-1000)
-- `draw_bbox` — draw annotation boxes on an image
-- `save_view` — extract document pages / video frames into standalone image files
-
-**Web (Serper)**
+**`qwen-mm-plugins-search` — web + reverse-image search (Serper)**
 - `web_search` — web search, returning titles / snippets / URLs
 - `web_extractor` — fetch a web page's main text, optionally summarized
 - `image_search` — search by image (reverse image search)
 
-> For exact schemas, see the capability's `SKILL.md` or each tool's inputSchema.
+> For exact schemas, see each capability's `SKILL.md` or each tool's inputSchema.
 
 ---
 
@@ -38,17 +42,19 @@ videos / documents, plus OCR, grounding, segmentation, ASR, vision chat, and web
 
 ```bash
 claude plugin marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
-claude plugin install qwen-mm-plugins-core@qwen-mm-plugins
+claude plugin install qwen-mm-plugins-core@qwen-mm-plugins      # local reading
+claude plugin install qwen-mm-plugins-api@qwen-mm-plugins       # cloud understanding (optional)
+claude plugin install qwen-mm-plugins-search@qwen-mm-plugins    # web/image search (optional)
 ```
 
 ## Environment variables
 
 | Variable | Description |
 |----------|-------------|
-| `DASHSCOPE_API_KEY` | Required for the DashScope-backed tools (`vision_chat`, `ocr`, `grounding`, `transcribe_audio`). Native image/video/document reading needs no key. |
+| `DASHSCOPE_API_KEY` | `qwen-mm-plugins-api` — the DashScope-backed tools (`vision_chat`, `ocr`, `grounding`, `transcribe_audio`). `core`'s local reading needs no key. |
 | `DASHSCOPE_BASE_URL` | Optional — override the DashScope OpenAI-compatible base URL (proxies/gateways). |
-| `SERPER_API_KEY` | Only for the web tools (`web_search` / `web_extractor` / `image_search`). Sign up at [serper.dev](https://serper.dev) — a Google-search API with a free starter tier |
-| `SAM3_SERVER_URL` | Only for `segmentation`. SAM3 is **self-hosted**: stand up the GPU HTTP server with the skill's [`references/launch_sam3_server.py`](../../src/capabilities/core/skill/references/launch_sam3_server.py) (needs the `sam3` package, a CUDA-enabled PyTorch, and the SAM3 checkpoint), then point this at it, e.g. `http://localhost:8787`. |
+| `SERPER_API_KEY` | `qwen-mm-plugins-search` — the web/image tools (`web_search` / `web_extractor` / `image_search`). Sign up at [serper.dev](https://serper.dev) — a Google-search API with a free starter tier |
+| `SAM3_SERVER_URL` | `qwen-mm-plugins-api` — only for `segmentation`. SAM3 is **self-hosted**: stand up the GPU HTTP server with the skill's [`references/launch_sam3_server.py`](../../src/capabilities/api/skill/references/launch_sam3_server.py) (needs the `sam3` package, a CUDA-enabled PyTorch, and the SAM3 checkpoint), then point this at it, e.g. `http://localhost:8787`. |
 
 > Set these via env vars, `~/.qwen-mm-plugins/config`, or the guided installer **`bash install.sh`** (`bash install.sh verify` checks what's set). Precedence: env var > config file > default.
 

@@ -106,11 +106,16 @@ For non-interactive/automation setup and the full environment-variable catalog, 
 Once a capability is installed, reference a file in your harness and just ask — the model picks the right tool automatically. Reading is **dynamic-resolution**: every image, video frame, and document page is auto-scaled to the VL model's patch grid, so a 4K screenshot's fine print and a tiny thumbnail both come in at the detail they need — no manual resizing.
 
 ```text
-# core — read images / video / docs / 3D models, plus OCR · grounding · segmentation · ASR · web search
+# core — read images / video / docs / 3D models (local, dynamic-resolution)
 @dashboard-4k.png      Read every number in this dashboard.
 @report.pdf            Summarize page 3.
+
+# api — cloud VL APIs: caption / OCR / grounding / segmentation / ASR
 @receipt.jpg           OCR this and total the line items.
 @street.jpg            Draw a box around every car in the scene.   # grounding
+
+# search — web + reverse-image search to confirm what's on screen
+@place.jpg             Where was this photo taken?                 # image_search + web_search
 
 # video-memory — QA over long videos; the first query auto-builds memory
 @lecture-2h.mp4        What are the main points, with timestamps?

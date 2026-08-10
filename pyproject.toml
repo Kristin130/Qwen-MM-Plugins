@@ -62,7 +62,7 @@ video-memory = ["numpy<3", "requests"]        # long-video graph-memory server
 video-edit = ["dashscope>=1.25.16", "requests"]  # image/video/audio generation server
 omni-av = ["openai", "requests"]              # Omni audio/video tools (caption/ASR family/grounding/counting)
 example = ["openai"]                           # template capability — base deps + openai (for the `describe` API demo)
-oss = ["oss2"]                                 # optional: serve large media by signed OSS URL (core OSS_VIDEO_BUCKET, memory-build clip upload, omni-av oversized-video upload)
+oss = ["oss2"]                                 # optional: upload large media to OSS for a signed URL (memory-build clip upload, omni-av oversized-video upload)
 blender = []                                   # Blender live-session MCP client (stdlib socket; needs a running Blender + addon)
 freecad = []                                   # FreeCAD live-session MCP client (stdlib xml-rpc; needs a running FreeCAD + addon)
 # profiles — install ONE. `core` is now local-only (no API key); cloud tools are the api/search
