@@ -22,9 +22,9 @@ We ship [**cookbooks**](cookbooks/) of Qwen3.8-Max + these plugins in action —
 
 | Capability | What it does | Install name | Cookbook |
 |---|---|---|---|
-| **core** | Read and visualize any file — images, video, docs, 3D, and more — at model-optimized resolution, plus image tools (crop, annotate, extract frames) | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
-| **api** | Cloud vision-language APIs for understanding media: vision chat (caption/VQA), OCR, grounding, ASR (DashScope) and segmentation (SAM3) | `qwen-mm-plugins-api` | [TBD](cookbooks/core/usage.md) |
-| **search** | Web + reverse-image search (Serper) to confirm facts: web search, page extraction, reverse image search | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
+| **core** | Local I/O plugin: read images and video in dynamic resolution, and visualize any file (e.g. docs, 3D, and more) — plus some image tools (crop, annotate, extract frames) | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
+| **api** | Cloud vision-language APIs for understanding media: vision chat, OCR, grounding, ASR, and segmentation (SAM3); currently supports DashScope | `qwen-mm-plugins-api` | [TBD](cookbooks/core/usage.md) |
+| **search** | Web + reverse-image search to confirm facts: web search, page extraction, reverse image search; currently supports Serper | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
 | **video-memory** | Long-video memory: a hierarchical graph memory that powers QA over very long videos | `qwen-mm-plugins-video-memory` | [TBD](cookbooks/video-memory/usage.md) |
 | **omni-av** | Omni-native audio/video understanding: ASR with optional timestamps and speaker labels, temporal captioning/grounding, event counting, and music tagging | `qwen-mm-plugins-omni-av` | [TBD](cookbooks/omni-av/usage.md) |
 | **video-edit** | Video editing + generation: editing workflows + image / video / audio generation | `qwen-mm-plugins-video-edit` | [TBD](cookbooks/video-edit/usage.md) |

@@ -1,7 +1,7 @@
 {
   "name": "qwen-mm-plugins-api",
   "version": "1.0.0",
-  "description": "Qwen-MM-Plugins api — cloud vision-language APIs for understanding media: vision_chat (caption/VQA), ocr, grounding, transcribe_audio (DashScope) and segmentation (SAM3), exposed as an MCP server.",
+  "description": "Qwen-MM-Plugins api — cloud vision-language APIs for understanding media: vision chat, OCR, grounding, ASR, and segmentation (SAM3), exposed as an MCP server; currently supports DashScope.",
   "skills": "./skill",
   "mcpServers": "./.mcp.json"
 }

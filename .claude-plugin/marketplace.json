@@ -11,12 +11,12 @@
     {
       "name": "qwen-mm-plugins-api",
       "source": "./src/capabilities/api",
-      "description": "Cloud vision-language APIs for understanding media: vision_chat (caption/VQA), ocr, grounding, transcribe_audio (DashScope), and segmentation (SAM3) as MCP tools."
+      "description": "Cloud vision-language APIs for understanding media: vision chat, OCR, grounding, ASR, and segmentation (SAM3) as MCP tools; currently supports DashScope."
     },
     {
       "name": "qwen-mm-plugins-search",
       "source": "./src/capabilities/search",
-      "description": "Web and reverse-image search (Serper) for confirming facts: web_search, web_extractor, image_search as MCP tools."
+      "description": "Web + reverse-image search to confirm facts: web search, page extraction, reverse image search as MCP tools; currently supports Serper."
     },
     {
       "name": "qwen-mm-plugins-video-memory",
