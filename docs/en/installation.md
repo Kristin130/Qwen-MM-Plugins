@@ -189,7 +189,7 @@ How to see which system tools are missing:
 
 ### cua exception: passthrough to an external binary (cua-driver)
 
-`qwen-mm-plugins-cua` ships **no MCP server of its own** and is **not** a `uvx` extra (there is no `[cua]` profile). It is a passthrough: its plugin manifest registers the external **Cua Driver** binary from [trycua/cua](https://github.com/trycua/cua) (MIT) as the MCP server `cua-computer-use`, giving the agent **whole-desktop** computer-use — launch and drive **any** native GUI app in the background (not just the browser). So the "installing a plugin needs no manual step" rule does **not** apply: the `cua-driver` binary must be installed first.
+`qwen-mm-plugins-cua` ships **no in-repo MCP server** and is **not** a `uvx` extra (there is no `[cua]` profile) — structurally it's like the skill-only **edu-agent** (nothing for `uvx` to build), *not* like blender/freecad, which ship their own Python MCP server. The difference from edu-agent: cua still gets an MCP server, just an **external** one. Its plugin manifest registers the **Cua Driver** binary from [trycua/cua](https://github.com/trycua/cua) (MIT) as the MCP server `cua-computer-use`, giving the agent **whole-desktop** computer-use — launch and drive **any** native GUI app in the background (not just the browser). So the "installing a plugin needs no manual step" rule does **not** apply: the `cua-driver` binary must be installed first.
 
 | Dependency | Powers | Install / check |
 |------|--------|-----------------|

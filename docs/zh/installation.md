@@ -187,7 +187,7 @@ qwenpaw skills config    # 交互勾选启用
 
 ### cua 例外：passthrough 到外部二进制（cua-driver）
 
-`qwen-mm-plugins-cua` **自身不含 MCP server**，也**不是** `uvx` extra（没有 `[cua]` profile）。它是一个 passthrough：插件清单把 [trycua/cua](https://github.com/trycua/cua)（MIT）的 **Cua Driver** 二进制注册为 MCP server `cua-computer-use`，给 agent **整个桌面**的 computer-use —— 后台启动并操控**任意**原生 GUI 应用（不只是浏览器）。所以「装插件无需手动步骤」对它**不适用**：必须先装好 `cua-driver` 二进制。
+`qwen-mm-plugins-cua` **仓库内不含 MCP server**,也**不是** `uvx` extra(没有 `[cua]` profile)——结构上它和纯 skill 的 **edu-agent** 一致(没有需要 `uvx` 构建的东西),而**不是** blender/freecad 那样自带 Python MCP server。与 edu-agent 的区别:cua 仍然有一个 MCP server,只是**外部**的。插件清单把 [trycua/cua](https://github.com/trycua/cua)(MIT)的 **Cua Driver** 二进制注册为 MCP server `cua-computer-use`,给 agent **整个桌面**的 computer-use —— 后台启动并操控**任意**原生 GUI 应用(不只是浏览器)。所以「装插件无需手动步骤」对它**不适用**:必须先装好 `cua-driver` 二进制。
 
 | 依赖 | 作用 | 安装 / 检查 |
 |------|--------|-----------------|
