@@ -26,8 +26,8 @@ QMP_DRY=0
 CAP_ITEMS=(core video-memory video-edit omni-av blender freecad edu-agent)
 CAP_DESC=("read/visualize any file + OCR, grounding, ASR, vision-chat"
           "hierarchical graph memory for long-video QA"
-          "Omni audio/video understanding: ASR, captioning, grounding, counting"
           "video-edit + image/video/audio generation"
+          "Omni audio/video understanding: ASR, captioning, grounding, counting"
           "drive a running Blender: 3D modeling / materials / render (thin client)"
           "drive a running FreeCAD: parametric CAD / STEP·STL / FEM (thin client)"
           "step-by-step Chinese math/science tutorial videos (skill-only)")
