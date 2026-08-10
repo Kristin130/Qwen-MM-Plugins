@@ -130,12 +130,10 @@ When OSS creds (`OSS_AK`/`OSS_SK`) are set the VLM gets clipped-video URLs (`cli
 
 | Variable | Scope | Purpose |
 |----------|-------|---------|
-| `OSS_AK` / `OSS_SK` / `OSS_ENDPOINT` | shared | Credentials + endpoint (both servers) |
-| `OSS_BUCKET` | build | Upload-destination bucket for build clip upload |
-| `OSS_VIDEO_BUCKET` | vision | Bucket holding source videos to resolve to signed URLs |
-| `OSS_VIDEO_KEY_PREFIX` / `OSS_VIDEO_LOCAL_PREFIX` / `OSS_VIDEO_KEY_PREFIX_MAP` | vision | Map a local video path → OSS object key |
-| `OSS_VIDEO_CLIP_PREFIX` | build | Key prefix for uploaded video clips (default: `tmp/video_clips`) |
-| `OSS_URL_EXPIRY` | build | Signed-URL TTL seconds (default: 7200) |
+| `OSS_AK` / `OSS_SK` / `OSS_ENDPOINT` | shared | Credentials + endpoint |
+| `OSS_BUCKET` | build / omni-av | Upload-destination bucket for `upload_and_sign` (memory-build clips, omni-av oversized media) |
+| `OSS_VIDEO_CLIP_PREFIX` | build / omni-av | Key prefix for uploaded clips (default: `tmp/video_clips`) |
+| `OSS_URL_EXPIRY` | shared | Signed-URL TTL seconds (default: 7200) |
 
 **App hosts (optional)** — blender/freecad live sessions + edu-agent rendering. Full catalog: `src/shared/env.py` `CONFIG_FIELDS` (regenerate these tables via `python3 scripts/gen_env_docs.py`).
 
