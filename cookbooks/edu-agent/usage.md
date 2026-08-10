@@ -24,6 +24,7 @@ manually.
 
 ```bash
 claude plugin marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
+claude plugin install qwen-mm-plugins-core@qwen-mm-plugins
 claude plugin install qwen-mm-plugins-edu-agent@qwen-mm-plugins
 ```
 
