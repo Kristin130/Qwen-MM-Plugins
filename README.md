@@ -22,7 +22,9 @@ We ship [**cookbooks**](cookbooks/) of Qwen3.8-Max + these plugins in action —
 
 | Capability | What it does | Install name | Cookbook |
 |---|---|---|---|
-| **core** | Foundational vision: dynamic-resolution reading of images / videos / documents / 3D models, plus OCR, grounding, segmentation, ASR, vision chat, and web search | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
+| **core** | Foundational local file I/O: dynamic-resolution reading of images / videos / documents / 3D models, plus `visualize`, `crop`, and bounding-box annotation. No API key | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
+| **api** | Cloud vision-language APIs for understanding media: vision chat (caption/VQA), OCR, grounding, ASR (DashScope) and segmentation (SAM3) | `qwen-mm-plugins-api` | [TBD](cookbooks/core/usage.md) |
+| **search** | Web + reverse-image search (Serper) to confirm facts: web search, page extraction, reverse image search | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
 | **video-memory** | Long-video memory: a hierarchical graph memory that powers QA over very long videos | `qwen-mm-plugins-video-memory` | [TBD](cookbooks/video-memory/usage.md) |
 | **omni-av** | Omni-native audio/video understanding: ASR with optional timestamps and speaker labels, temporal captioning/grounding, event counting, and music tagging | `qwen-mm-plugins-omni-av` | [TBD](cookbooks/omni-av/usage.md) |
 | **video-edit** | Video editing + generation: editing workflows + image / video / audio generation | `qwen-mm-plugins-video-edit` | [TBD](cookbooks/video-edit/usage.md) |
@@ -58,7 +60,7 @@ environment; native Windows has not yet been validated. See the concise
 
 Prefer your harness's own commands — or you're on opencode / pi / QwenPaw, which the installer doesn't cover? Register the skill + MCP yourself.
 
-**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw · Qwen Code) — add the marketplace, then install a capability (replace `<cap>` with `core` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`):
+**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw · Qwen Code) — add the marketplace, then install a capability (replace `<cap>` with `core` / `api` / `search` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`):
 
 ```bash
 # Claude Code

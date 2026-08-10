@@ -41,7 +41,7 @@ def _format_results(docs: list[dict[str, Any]], start_id: int = 1) -> tuple[str,
 
 
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
-    from qwen_mm_plugins_core.serper import post_serper, resolve_serper_key
+    from qwen_mm_plugins_search.serper import post_serper, resolve_serper_key
     from shared.content import require_dep, text_error
 
     queries = arguments.get("queries", [])

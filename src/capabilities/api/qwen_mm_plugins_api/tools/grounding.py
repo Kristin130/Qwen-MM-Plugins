@@ -172,7 +172,7 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
     if should_draw and detections:
-        from qwen_mm_plugins_core.renderers import image_to_content
+        from shared.image import image_to_content
 
         content.append(image_to_content(draw_boxes(img, detections), "large"))
 

@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from qwen_mm_plugins_core.readers.image import process_image
 from qwen_mm_plugins_core.renderers import DEFAULT_MAX_PAGES, parse_pages
 from shared.env import IMAGE_BUDGET_TOKENS, IMAGE_MIN_PIXELS, MAX_RESPONSE_BYTES
-from shared.image import budget_to_pixels
+from shared.image import budget_to_pixels, process_image
 
 
 def render(path: str, **opts: Any) -> list[dict[str, Any]]:

@@ -116,7 +116,7 @@ def _upload_public(path: str, max_retry: int = UPLOAD_MAX_RETRY) -> Optional[str
 
 def _lens_search(image_url: str, api_key: str, max_retry: int = SERPER_LENS_MAX_RETRY) -> list[dict[str, Any]]:
     """Reverse image search via the public Serper (Google Lens) API."""
-    from qwen_mm_plugins_core.serper import post_serper
+    from qwen_mm_plugins_search.serper import post_serper
 
     data = post_serper("lens", {"url": image_url, "gl": "us", "hl": "en"}, api_key, max_retries=max_retry)
     return (data or {}).get("organic", [])
@@ -143,7 +143,7 @@ def _format_results(docs: list[dict[str, Any]]) -> str:
 
 
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
-    from qwen_mm_plugins_core.serper import resolve_serper_key
+    from qwen_mm_plugins_search.serper import resolve_serper_key
     from shared.content import require_dep, require_file, text_error
 
     if err := require_dep("requests"):

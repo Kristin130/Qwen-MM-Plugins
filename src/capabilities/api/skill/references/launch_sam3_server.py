@@ -29,25 +29,31 @@ Serves:
     GET  /health
 """
 
-import os
-import io
-import base64
 import argparse
-import logging
-import uuid
 import asyncio
+import base64
+import io
+import logging
+import os
+import uuid
 from typing import Dict, List, Optional
 
 import numpy as np
 import torch
 import torch.multiprocessing as mp
-from PIL import Image, ImageDraw
-from fastapi import FastAPI, HTTPException
 import uvicorn
+from fastapi import FastAPI, HTTPException
+from PIL import Image, ImageDraw
 
 COLORS = [
-    (255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
-    (255, 0, 255), (0, 255, 255), (255, 128, 0), (128, 0, 255),
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 255, 0),
+    (255, 0, 255),
+    (0, 255, 255),
+    (255, 128, 0),
+    (128, 0, 255),
 ]
 
 MAX_BATCH_SIZE = 32
@@ -68,7 +74,9 @@ def _resolve_paths(sam3_root: str, checkpoint: Optional[str], bpe: Optional[str]
     """Resolve checkpoint + BPE paths from CLI/env, defaulting to the sam3 repo layout."""
     root = os.path.abspath(sam3_root)
     ckpt = checkpoint or os.environ.get("SAM3_CHECKPOINT") or os.path.join(root, "checkpoints", "sam3.pt")
-    bpe_path = bpe or os.environ.get("SAM3_BPE_PATH") or os.path.join(root, "sam3", "assets", "bpe_simple_vocab_16e6.txt.gz")
+    bpe_path = (
+        bpe or os.environ.get("SAM3_BPE_PATH") or os.path.join(root, "sam3", "assets", "bpe_simple_vocab_16e6.txt.gz")
+    )
     for label, path in (("checkpoint", ckpt), ("BPE vocab", bpe_path)):
         if not os.path.exists(path):
             raise SystemExit(
@@ -80,6 +88,7 @@ def _resolve_paths(sam3_root: str, checkpoint: Optional[str], bpe: Optional[str]
 
 # --------------- GPU Worker Process ---------------
 
+
 def gpu_worker(gpu_id: int, request_queue: mp.Queue, response_dict, lock, checkpoint_path: str, bpe_path: str):
     """Worker process: loads model on one GPU, processes requests forever."""
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -89,8 +98,8 @@ def gpu_worker(gpu_id: int, request_queue: mp.Queue, response_dict, lock, checkp
     wlog = logging.getLogger(worker_name)
 
     wlog.info(f"Loading SAM3 on physical GPU {gpu_id} (visible as {device})...")
-    from sam3.model_builder import build_sam3_image_model
     from sam3.model.sam3_image_processor import Sam3Processor
+    from sam3.model_builder import build_sam3_image_model
 
     model = build_sam3_image_model(
         bpe_path=bpe_path,
@@ -130,11 +139,13 @@ def gpu_worker(gpu_id: int, request_queue: mp.Queue, response_dict, lock, checkp
                 mask_img = Image.fromarray((mask_np * 255).astype(np.uint8))
                 buf = io.BytesIO()
                 mask_img.save(buf, format="PNG")
-                results.append({
-                    "score": float(score),
-                    "box": [float(x) for x in (box.tolist() if hasattr(box, "tolist") else box)],
-                    "mask_b64": base64.b64encode(buf.getvalue()).decode(),
-                })
+                results.append(
+                    {
+                        "score": float(score),
+                        "box": [float(x) for x in (box.tolist() if hasattr(box, "tolist") else box)],
+                        "mask_b64": base64.b64encode(buf.getvalue()).decode(),
+                    }
+                )
 
             data = {"prompt": prompt, "num_masks": len(results), "results": results}
             if return_img and results:
@@ -157,14 +168,12 @@ def _draw_masks(image: Image.Image, results: list, alpha: float = 0.45) -> str:
         mask_img = Image.open(io.BytesIO(mask_bytes)).convert("L")
         mask_np = np.array(mask_img) > 127
         colored = np.array(overlay)
-        colored[mask_np] = (
-            (1 - alpha) * colored[mask_np] + alpha * np.array(color)
-        ).astype(np.uint8)
+        colored[mask_np] = ((1 - alpha) * colored[mask_np] + alpha * np.array(color)).astype(np.uint8)
         overlay = Image.fromarray(colored)
         draw = ImageDraw.Draw(overlay)
         x0, y0, x1, y1 = r["box"]
         draw.rectangle([x0, y0, x1, y1], outline=color, width=3)
-        label = f'{r["score"]:.2f}'
+        label = f"{r['score']:.2f}"
         draw.rectangle([x0, y0 - 18, x0 + len(label) * 8 + 4, y0], fill=color)
         draw.text((x0 + 2, y0 - 16), label, fill=(255, 255, 255))
     buf = io.BytesIO()
@@ -226,10 +235,7 @@ def start_workers(gpu_ids: List[int], checkpoint_path: str, bpe_path: str, worke
 
     num_workers = idx
     workers_ready = True
-    logger.info(
-        f"All {num_workers} workers started "
-        f"({len(gpu_ids)} GPUs x {workers_per_gpu} workers/GPU)"
-    )
+    logger.info(f"All {num_workers} workers started ({len(gpu_ids)} GPUs x {workers_per_gpu} workers/GPU)")
 
 
 def pick_worker() -> int:
@@ -365,18 +371,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SAM3 Multi-GPU Server")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8787)
-    parser.add_argument("--gpus", type=str, default=None,
-                        help="Comma-separated GPU IDs, e.g. 0,1,2,3")
-    parser.add_argument("--num-gpus", type=int, default=None,
-                        help="Use first N GPUs (alternative to --gpus)")
-    parser.add_argument("--workers-per-gpu", type=int, default=1,
-                        help="Number of worker processes per GPU (default: 1)")
-    parser.add_argument("--sam3-root", default=os.environ.get("SAM3_ROOT", "."),
-                        help="SAM3 repo root; checkpoint/BPE default to <root>/checkpoints and <root>/sam3/assets (env: SAM3_ROOT)")
-    parser.add_argument("--checkpoint", default=None,
-                        help="Path to sam3.pt (default: <sam3-root>/checkpoints/sam3.pt; env: SAM3_CHECKPOINT)")
-    parser.add_argument("--bpe", default=None,
-                        help="Path to BPE vocab .txt.gz (default: <sam3-root>/sam3/assets/...; env: SAM3_BPE_PATH)")
+    parser.add_argument("--gpus", type=str, default=None, help="Comma-separated GPU IDs, e.g. 0,1,2,3")
+    parser.add_argument("--num-gpus", type=int, default=None, help="Use first N GPUs (alternative to --gpus)")
+    parser.add_argument(
+        "--workers-per-gpu", type=int, default=1, help="Number of worker processes per GPU (default: 1)"
+    )
+    parser.add_argument(
+        "--sam3-root",
+        default=os.environ.get("SAM3_ROOT", "."),
+        help="SAM3 repo root; checkpoint/BPE default to <root>/checkpoints and <root>/sam3/assets (env: SAM3_ROOT)",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        default=None,
+        help="Path to sam3.pt (default: <sam3-root>/checkpoints/sam3.pt; env: SAM3_CHECKPOINT)",
+    )
+    parser.add_argument(
+        "--bpe",
+        default=None,
+        help="Path to BPE vocab .txt.gz (default: <sam3-root>/sam3/assets/...; env: SAM3_BPE_PATH)",
+    )
     args = parser.parse_args()
 
     checkpoint_path, bpe_path = _resolve_paths(args.sam3_root, args.checkpoint, args.bpe)

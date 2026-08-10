@@ -6,13 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Qwen-MM-Plugins is an Agent Skills + MCP Tools platform for vision-language models. Each capability lives in one directory under `src/capabilities/<name>/`, holding any of: a `skill/` (the Agent Skill) and a `<import_name>/` MCP-server package — each part optional. Main subsystems:
 
-1. **qwen-mm-plugins-core** — MCP server exposing media reading (images, videos), file visualization, OCR, grounding, segmentation, ASR, and vision chat as MCP tools. `src/capabilities/core/` (skill + `qwen_mm_plugins_core/` server).
-2. **qwen-mm-plugins-video-memory** — Hierarchical graph memory for long video QA. 4-level tree: Root → SuperEvent → MacroEvent → Subgraph, with embedding-based semantic search. `src/capabilities/video-memory/` (skill + `qwen_mm_plugins_video_memory/` server).
-3. **qwen-mm-plugins-video-edit** — Video-editing skill + image/video/audio **generation** MCP tools (DashScope, via `shared.api_dashscope`). `src/capabilities/video-edit/` (skill + `qwen_mm_plugins_video_edit/` server).
-4. **qwen-mm-plugins-blender** — Blender 3D modeling: MCP tools driving a live Blender (execute Python, viewport screenshots, PolyHaven/Sketchfab/Hyper3D/Hunyuan3D assets) + a build→refine→verify skill; needs a running Blender + addon. `src/capabilities/blender/`.
-5. **qwen-mm-plugins-freecad** — FreeCAD parametric CAD: MCP tools (create/edit objects, execute Python, named-view screenshots, parts library, CalculiX FEM) + a skill; needs a running FreeCAD + addon. `src/capabilities/freecad/`.
-6. **qwen-mm-plugins-edu-agent** — Skill only: turns a math/science problem or image into a step-by-step Chinese explainer video or interactive page. `src/capabilities/edu-agent/`.
-7. **qwen-mm-plugins-example** — Template capability (skill + server, 5 demo tools) to copy when adding your own. `src/capabilities/example/`.
+1. **qwen-mm-plugins-core** — Local file I/O MCP server: media reading (images, videos), `media_info`, file visualization, and image cropping/annotation (`crop`/`draw_bbox`/`save_view`). No API key. `src/capabilities/core/` (skill + `qwen_mm_plugins_core/` server).
+2. **qwen-mm-plugins-api** — Cloud vision-language APIs for understanding media: `vision_chat`, `ocr`, `grounding`, `transcribe_audio` (DashScope, via `shared.api_openai`) + `segmentation` (SAM3). `src/capabilities/api/` (skill + `qwen_mm_plugins_api/` server).
+3. **qwen-mm-plugins-search** — Web + reverse-image search (Serper) to confirm facts: `web_search`, `web_extractor`, `image_search`. `src/capabilities/search/` (skill + `qwen_mm_plugins_search/` server).
+4. **qwen-mm-plugins-omni-av** — Omni-model audio/video understanding: timestamped captioning, ASR (plain/controllable/multi-speaker), temporal grounding, event counting (via `shared.api_omni`). Overlaps `api`'s caption/asr/grounding by design (different model). `src/capabilities/omni-av/` (skill + `qwen_mm_plugins_omni_av/` server).
+5. **qwen-mm-plugins-video-memory** — Hierarchical graph memory for long video QA. 4-level tree: Root → SuperEvent → MacroEvent → Subgraph, with embedding-based semantic search. `src/capabilities/video-memory/` (skill + `qwen_mm_plugins_video_memory/` server).
+6. **qwen-mm-plugins-video-edit** — Video-editing skill + image/video/audio **generation** MCP tools (DashScope, via `shared.api_dashscope`). `src/capabilities/video-edit/` (skill + `qwen_mm_plugins_video_edit/` server).
+7. **qwen-mm-plugins-blender** — Blender 3D modeling: MCP tools driving a live Blender (execute Python, viewport screenshots, PolyHaven/Sketchfab/Hyper3D/Hunyuan3D assets) + a build→refine→verify skill; needs a running Blender + addon. `src/capabilities/blender/`.
+8. **qwen-mm-plugins-freecad** — FreeCAD parametric CAD: MCP tools (create/edit objects, execute Python, named-view screenshots, parts library, CalculiX FEM) + a skill; needs a running FreeCAD + addon. `src/capabilities/freecad/`.
+9. **qwen-mm-plugins-edu-agent** — Skill only: turns a math/science problem or image into a step-by-step Chinese explainer video or interactive page. `src/capabilities/edu-agent/`.
+10. **qwen-mm-plugins-example** — Template capability (skill + server, 5 demo tools) to copy when adding your own. `src/capabilities/example/`.
 
 ## Video Content Questions — MANDATORY Skill Usage
 

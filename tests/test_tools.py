@@ -17,20 +17,13 @@ from qwen_mm_plugins_core.visualizers import visualize
 
 # Stable core tools that must always be discoverable. We assert this set is a
 # subset of what the core server discovers rather than pinning an exact list, so
-# adding a core tool later doesn't break this check.
+# adding a core tool later doesn't break this check. Core is local file I/O only —
+# cloud API tools live in the qwen-mm-plugins-api / qwen-mm-plugins-search capabilities.
 CORE_TOOLS = {
     "read_image",
     "read_video",
     "media_info",
     "visualize",
-    "vision_chat",
-    "ocr",
-    "grounding",
-    "segmentation",
-    "transcribe_audio",
-    "web_search",
-    "web_extractor",
-    "image_search",
     "crop",
     "draw_bbox",
     "save_view",

@@ -22,7 +22,9 @@
 
 | 能力 | 做什么 | 安装名 | Cookbook |
 |---|---|---|---|
-| **core** | 基础视觉：动态分辨率读取图片 / 视频 / 文档 / 3D 模型等，外加 OCR、grounding、分割、ASR、视觉对话、联网搜索 | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
+| **core** | 基础本地文件读取：动态分辨率读取图片 / 视频 / 文档 / 3D 模型等，外加 `visualize`、裁剪、画框标注。无需 API key | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
+| **api** | 云端视觉语言 API 理解媒体：视觉对话（caption/VQA）、OCR、grounding、ASR（DashScope）与分割（SAM3） | `qwen-mm-plugins-api` | [TBD](cookbooks/core/usage.md) |
+| **search** | 联网 + 反查图搜索（Serper）用于事实核验:web_search、网页抽取、反查图 | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
 | **video-memory** | 长视频记忆：层次化图记忆，支撑超长视频问答 | `qwen-mm-plugins-video-memory` | [link](cookbooks/video-memory/usage.md) |
 | **omni-av** | Omni 原生音视频理解：带时间戳或说话人标签的 ASR、分段描述、时序定位、事件计数与音乐标签 | `qwen-mm-plugins-omni-av` | [link](cookbooks/omni-av/usage.md) |
 | **video-edit** | 视频剪辑 + 生成：剪辑工作流 + 图片 / 视频 / 音频生成 | `qwen-mm-plugins-video-edit` | — |
@@ -57,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install
 
 想用 harness 自己的命令，或你在 opencode / pi / QwenPaw 上（安装器不覆盖这几个）？那就自己注册 skill + MCP。
 
-**有插件市场的 harness**（Claude Code · Qoder · Codex · OpenClaw · Qwen Code）—— 加市场，再装某个能力（把 `<cap>` 换成 `core` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`）：
+**有插件市场的 harness**（Claude Code · Qoder · Codex · OpenClaw · Qwen Code）—— 加市场，再装某个能力（把 `<cap>` 换成 `core` / `api` / `search` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`）：
 
 ```bash
 # Claude Code

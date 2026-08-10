@@ -27,7 +27,7 @@ TOOL: dict[str, Any] = {
 
 def _scrape_page(url: str, api_key: str) -> str:
     """Scrape a URL via Serper; returns its markdown/text, or an error/empty note."""
-    from qwen_mm_plugins_core.serper import post_serper
+    from qwen_mm_plugins_search.serper import post_serper
 
     data = post_serper("scrape", {"url": url, "includeMarkdown": True}, api_key, max_retries=3)
     if data is None:
@@ -36,7 +36,7 @@ def _scrape_page(url: str, api_key: str) -> str:
 
 
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
-    from qwen_mm_plugins_core.serper import resolve_serper_key
+    from qwen_mm_plugins_search.serper import resolve_serper_key
     from shared.content import require_dep, text_error
 
     urls = arguments.get("urls", [])

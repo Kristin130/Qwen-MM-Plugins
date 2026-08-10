@@ -7,6 +7,9 @@ import io
 import os
 from typing import Any, Callable
 
+from shared.image import image_to_content as image_to_content
+from shared.image import render_image_block as render_image_block
+
 from . import code
 
 # Default page/surface cap for multi-page renderers when the caller gives no `pages`.
@@ -84,26 +87,6 @@ def get_renderer(ext: str) -> Callable[..., Any] | None:
     mod_name, func_name = spec
     mod = importlib.import_module(f".{mod_name}", package=__name__)
     return getattr(mod, func_name)
-
-
-def render_image_block(img, budget: str = "large") -> tuple[dict[str, str], int, int]:
-    """Resize a PIL Image to the token budget and return (image block, width, height)."""
-    from qwen_mm_plugins_core.readers.image import process_image
-    from shared.env import IMAGE_BUDGET_TOKENS, IMAGE_MIN_PIXELS
-    from shared.image import budget_to_pixels
-
-    max_pixels = budget_to_pixels(budget, IMAGE_BUDGET_TOKENS)
-    _, b64, w, h, mime = process_image(img, IMAGE_MIN_PIXELS, max_pixels)
-    return {"type": "image", "data": b64, "mimeType": mime}, w, h
-
-
-def image_to_content(
-    img,
-    budget: str = "large",
-) -> dict[str, str]:
-    """Convert a PIL Image to an MCP image content block (resized to budget)."""
-    block, _w, _h = render_image_block(img, budget)
-    return block
 
 
 def labeled_image(label: str, img, budget: str = "large") -> list[dict[str, Any]]:

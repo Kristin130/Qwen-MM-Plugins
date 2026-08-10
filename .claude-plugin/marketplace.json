@@ -6,7 +6,17 @@
     {
       "name": "qwen-mm-plugins-core",
       "source": "./src/capabilities/core",
-      "description": "Vision: dynamic-resolution read of images/videos/docs/3D + OCR, grounding, segmentation, ASR, vision-chat as MCP tools."
+      "description": "Local file I/O: dynamic-resolution read of images/videos/docs/3D + visualize, crop, and bounding-box annotation as MCP tools. No API key."
+    },
+    {
+      "name": "qwen-mm-plugins-api",
+      "source": "./src/capabilities/api",
+      "description": "Cloud vision-language APIs for understanding media: vision_chat (caption/VQA), ocr, grounding, transcribe_audio (DashScope), and segmentation (SAM3) as MCP tools."
+    },
+    {
+      "name": "qwen-mm-plugins-search",
+      "source": "./src/capabilities/search",
+      "description": "Web and reverse-image search (Serper) for confirming facts: web_search, web_extractor, image_search as MCP tools."
     },
     {
       "name": "qwen-mm-plugins-video-memory",
