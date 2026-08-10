@@ -58,6 +58,16 @@ def test_all_tools_discovered():
     assert not missing, f"core tools not discovered: {missing}"
 
 
+def test_core_excludes_cloud_tools():
+    # Cloud API tools moved to the api/search capabilities — core must not re-expose them.
+    names = {t["name"] for t in list_tools()}
+    moved = {
+        "vision_chat", "ocr", "grounding", "segmentation", "transcribe_audio",
+        "web_search", "web_extractor", "image_search",
+    }
+    assert not (names & moved), f"core unexpectedly exposes cloud tools: {names & moved}"
+
+
 def test_every_tool_has_schema_and_handler():
     for tool in list_tools():
         assert tool.get("name")
@@ -108,6 +118,15 @@ def test_read_video_returns_frames(sample_video):
     # first text block is the summary
     assert content[0]["type"] == "text"
     assert "frame" in content[0]["text"].lower()
+
+
+def test_get_video_info_reports_rotation(sample_video):
+    from shared.video import get_video_info
+
+    info = get_video_info(sample_video)
+    # rotation is always present (read_video's summary reads info["rotation"]); a normal clip is unrotated.
+    assert "rotation" in info and info["rotation"] == 0
+    assert info["native_fps"] > 0
 
 
 def test_read_video_respects_max_frames(sample_video):

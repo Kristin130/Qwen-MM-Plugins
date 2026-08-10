@@ -1,7 +1,7 @@
 """MCP tool: extract video frames with dynamic resolution and FPS.
 
 Reusable ffmpeg helpers live in shared.video; this module is the read_video tool:
-arg model, local/OSS orchestration, and response assembly.
+arg model, frame sampling, and response assembly.
 """
 
 from __future__ import annotations

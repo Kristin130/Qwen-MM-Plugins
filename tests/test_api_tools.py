@@ -215,6 +215,12 @@ def test_grounding_missing_file_guard():
     assert _is_error(grounding.handle({"image_path": "/does/not/exist.png", "prompt": "cat"}))
 
 
+def test_asr_missing_file_guard():
+    # transcribe_audio is local-only (no OSS fallback): a missing file returns an error, not a crash.
+    blocks = asr.handle({"file_path": "/does/not/exist.wav"})
+    assert _is_error(blocks) and "file not found" in blocks[0]["text"]
+
+
 def test_vision_chat_dry_run_builds_request_without_network(sample_image):
     blocks = vision_chat.handle({"images": [sample_image], "text": "hello", "dry_run": True})
     assert len(blocks) == 1 and blocks[0]["type"] == "text"

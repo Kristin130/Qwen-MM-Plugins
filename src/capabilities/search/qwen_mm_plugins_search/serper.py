@@ -1,8 +1,8 @@
-"""Core-local client for the public Serper (google.serper.dev) API.
+"""Client for the public Serper (google.serper.dev) API.
 
 One home for the base URL, auth header, and POST-with-retry policy shared by the
-web_search / web_extractor / image_search tools. Kept core-local (beside oss.py)
-rather than in src/shared/ because Serper is used only by the core capability; it
+web_search / web_extractor / image_search tools. Lives in the search capability
+(package-local) rather than src/shared/ because Serper is used only here; it
 mirrors the shape of shared.api_dashscope (a base-URL constant + a retry helper).
 """
 
