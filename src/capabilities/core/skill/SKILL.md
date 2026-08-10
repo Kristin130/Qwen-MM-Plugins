@@ -1,6 +1,6 @@
 ---
 name: qwen-mm-plugins-core
-description: Local MCP tools for reading and visualizing any file — images, videos, documents (PDF/Office), code, data (CSV/XLSX), 3D models, notebooks, GIS — plus cropping and bounding-box annotation.
+description: Local MCP tools to read and visualize any file — images, video, documents, code, data, 3D, notebooks, and more — plus image tools for cropping, annotating, and extracting frames.
 ---
 
 # Qwen-MM-Plugins Core
