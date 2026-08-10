@@ -147,4 +147,4 @@ Development setup, contribution guidelines, and verification commands are in
 
 ## 📄 License
 
-Apache-2.0 — see [`LICENSE`](LICENSE). The Blender and FreeCAD capabilities vendor third-party MIT-licensed code; see [`src/capabilities/blender/NOTICE.md`](src/capabilities/blender/NOTICE.md) and [`src/capabilities/freecad/NOTICE.md`](src/capabilities/freecad/NOTICE.md) for attribution.
+Apache-2.0 — see [`LICENSE`](LICENSE). The Blender and FreeCAD capabilities vendor third-party MIT-licensed code, and the CUA capability vendors trycua/cua's MIT-licensed skill docs; see [`src/capabilities/blender/NOTICE.md`](src/capabilities/blender/NOTICE.md), [`src/capabilities/freecad/NOTICE.md`](src/capabilities/freecad/NOTICE.md), and [`src/capabilities/cua/NOTICE.md`](src/capabilities/cua/NOTICE.md) for attribution.
