@@ -22,7 +22,7 @@
 
 | 能力 | 做什么 | 安装名 | Cookbook |
 |---|---|---|---|
-| **core** | 基础本地文件读取：动态分辨率读取图片 / 视频 / 文档 / 3D 模型等，外加 `visualize`、裁剪、画框标注 | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
+| **core** | 读取并可视化任意文件——图片、视频、文档、3D 等——动态分辨率；外加图像工具(裁剪 / 标注 / 抽帧) | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
 | **api** | 云端视觉语言 API 理解媒体：视觉对话（caption/VQA）、OCR、grounding、ASR（DashScope）与分割（SAM3） | `qwen-mm-plugins-api` | [TBD](cookbooks/core/usage.md) |
 | **search** | 联网 + 反查图搜索（Serper）用于事实核验:web_search、网页抽取、反查图 | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
 | **video-memory** | 长视频记忆：层次化图记忆，支撑超长视频问答 | `qwen-mm-plugins-video-memory` | [link](cookbooks/video-memory/usage.md) |

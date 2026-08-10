@@ -1,7 +1,7 @@
 # Cookbook — Qwen-MM-Plugins Core (+ api / search)
 
-`qwen-mm-plugins-core` is the local file capability: dynamic-resolution reading of images / videos /
-documents / 3D, plus visualize, crop, and bounding-box annotation. The cloud model/API tools that
+`qwen-mm-plugins-core` is the local file capability: read and visualize any file at model-optimized
+resolution, plus image tools (crop, annotate, extract frames). The cloud model/API tools that
 used to live here now ship as two sibling capabilities — `qwen-mm-plugins-api` (caption/OCR/grounding/
 segmentation/ASR) and `qwen-mm-plugins-search` (web + reverse-image search). This cookbook covers the
 family; the tool list below marks which plugin each tool belongs to. See the [Cases](#cases) below
