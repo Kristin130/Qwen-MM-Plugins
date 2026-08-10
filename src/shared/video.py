@@ -89,7 +89,7 @@ def get_video_info(video_path: str) -> dict:
             "-select_streams",
             "v:0",
             "-show_entries",
-            "stream=width,height,duration,r_frame_rate,nb_frames",
+            "stream=width,height,duration,r_frame_rate,nb_frames:stream_tags=rotate:stream_side_data=rotation",
             "-show_entries",
             "format=duration",
             "-of",
@@ -121,7 +121,31 @@ def get_video_info(video_path: str) -> dict:
         if int(den) > 0 and int(num) > 0:
             native_fps = int(num) / int(den)
 
-    return {"width": width, "height": height, "duration": duration, "native_fps": native_fps}
+    # Display rotation (phones/action cams store sideways pixels + a rotate flag): prefer the
+    # Display-Matrix side-data value, fall back to the legacy `rotate` tag. 0 when absent.
+    rotation = 0
+    for sd in stream.get("side_data_list") or []:
+        if "rotation" in sd:
+            try:
+                rotation = int(float(sd["rotation"]))
+            except (TypeError, ValueError):
+                rotation = 0
+            break
+    else:
+        rotate_tag = (stream.get("tags") or {}).get("rotate")
+        if rotate_tag:
+            try:
+                rotation = int(float(rotate_tag))
+            except (TypeError, ValueError):
+                rotation = 0
+
+    return {
+        "width": width,
+        "height": height,
+        "duration": duration,
+        "native_fps": native_fps,
+        "rotation": rotation,
+    }
 
 
 def compute_dynamic_fps(
