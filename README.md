@@ -22,7 +22,7 @@ We ship [**cookbooks**](cookbooks/) of Qwen3.8-Max + these plugins in action —
 
 | Capability | What it does | Install name | Cookbook |
 |---|---|---|---|
-| **core** | Foundational local file I/O: dynamic-resolution reading of images / videos / documents / 3D models, plus `visualize`, `crop`, and bounding-box annotation. No API key | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
+| **core** | Foundational local file I/O: dynamic-resolution reading of images / videos / documents / 3D models, plus `visualize`, `crop`, and bounding-box annotation | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
 | **api** | Cloud vision-language APIs for understanding media: vision chat (caption/VQA), OCR, grounding, ASR (DashScope) and segmentation (SAM3) | `qwen-mm-plugins-api` | [TBD](cookbooks/core/usage.md) |
 | **search** | Web + reverse-image search (Serper) to confirm facts: web search, page extraction, reverse image search | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
 | **video-memory** | Long-video memory: a hierarchical graph memory that powers QA over very long videos | `qwen-mm-plugins-video-memory` | [TBD](cookbooks/video-memory/usage.md) |

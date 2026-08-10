@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Qwen-MM-Plugins is an Agent Skills + MCP Tools platform for vision-language models. Each capability lives in one directory under `src/capabilities/<name>/`, holding any of: a `skill/` (the Agent Skill) and a `<import_name>/` MCP-server package — each part optional. Main subsystems:
 
-1. **qwen-mm-plugins-core** — Local file I/O MCP server: media reading (images, videos), `media_info`, file visualization, and image cropping/annotation (`crop`/`draw_bbox`/`save_view`). No API key. `src/capabilities/core/` (skill + `qwen_mm_plugins_core/` server).
+1. **qwen-mm-plugins-core** — Local file I/O MCP server: media reading (images, videos), `media_info`, file visualization, and image cropping/annotation (`crop`/`draw_bbox`/`save_view`). `src/capabilities/core/` (skill + `qwen_mm_plugins_core/` server).
 2. **qwen-mm-plugins-api** — Cloud vision-language APIs for understanding media: `vision_chat`, `ocr`, `grounding`, `transcribe_audio` (DashScope, via `shared.api_openai`) + `segmentation` (SAM3). `src/capabilities/api/` (skill + `qwen_mm_plugins_api/` server).
 3. **qwen-mm-plugins-search** — Web + reverse-image search (Serper) to confirm facts: `web_search`, `web_extractor`, `image_search`. `src/capabilities/search/` (skill + `qwen_mm_plugins_search/` server).
 4. **qwen-mm-plugins-omni-av** — Omni-model audio/video understanding: timestamped captioning, ASR (plain/controllable/multi-speaker), temporal grounding, event counting (via `shared.api_omni`). Overlaps `api`'s caption/asr/grounding by design (different model). `src/capabilities/omni-av/` (skill + `qwen_mm_plugins_omni_av/` server).

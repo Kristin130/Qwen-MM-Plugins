@@ -29,6 +29,6 @@ Check the `qwen-mm-plugins-api` tools in your tool list for full schemas and par
 
 ## Relationship to Other Capabilities (do NOT overlap)
 
-- **Read/visualize local files** (images, video frames, PDF, Office, 3D, ...) → `qwen-mm-plugins-core` (`read_image`/`read_video`/`visualize`/`crop`/`draw_bbox`/`save_view`). Core is local and needs no API key; this capability is the cloud layer on top.
+- **Read/visualize local files** (images, video frames, PDF, Office, 3D, ...) → `qwen-mm-plugins-core` (`read_image`/`read_video`/`visualize`/`crop`/`draw_bbox`/`save_view`).
 - **Confirm a fact or identify an entity** (reverse image / web) → `qwen-mm-plugins-search` (`image_search`/`web_search`/`web_extractor`).
 - **Omni-model audio/video understanding** (timestamped captioning, controllable / multi-speaker ASR, temporal grounding, event counting) → `qwen-mm-plugins-omni-av`. That capability runs the Qwen-Omni model; `vision_chat`/`grounding`/`transcribe_audio` here run the qwen-vl / qwen3-asr models. Pick by which model you want.

@@ -3,7 +3,7 @@
 A pure-tools MCP server. Each module under ``tools/`` exports ``TOOL`` + ``handle`` and is
 auto-discovered by the framework. These tools call external models/services — DashScope VL
 (vision_chat / ocr / grounding), DashScope ASR (transcribe_audio), and a SAM3 server
-(segmentation) — as opposed to ``core``, which reads/visualizes files locally with no API key.
+(segmentation). Local file reading/visualization lives in ``core``.
 """
 
 from mcp_framework import __version__ as __version__
