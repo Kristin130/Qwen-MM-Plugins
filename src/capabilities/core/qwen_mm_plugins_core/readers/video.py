@@ -11,7 +11,6 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from shared import oss
 from shared.content import image, text, text_error
 from shared.env import (
     DEFAULT_BUDGET,
@@ -72,87 +71,10 @@ TOOL: dict[str, Any] = {
 }
 
 
-_OSS_BUDGET_MAX_DIM = {"small": 288, "normal": 512, "large": 1024}
-
-
-def _handle_oss_video(arguments: dict[str, Any], oss_info: dict[str, Any]) -> list[dict[str, Any]]:
-    """Handle read_video via OSS when local file is unavailable."""
-    video_path = arguments.get("video_path", "")
-    budget = arguments.get("budget", DEFAULT_BUDGET)
-    max_frames = min(arguments.get("max_frames", MAX_TOTAL_FRAMES), MAX_TOTAL_FRAMES)
-    requested_fps = arguments.get("fps", 0)
-
-    clip_duration = oss_info["clip_duration"]
-    max_dim = _OSS_BUDGET_MAX_DIM.get(budget, 512)
-
-    start_time = parse_time(arguments.get("start_time", 0.0))
-    if start_time is None or start_time < 0:
-        start_time = 0.0
-    end_time = parse_time(arguments.get("end_time"))
-    if end_time is not None:
-        if end_time <= start_time:
-            return text_error(f"end_time ({end_time}s) must be greater than start_time ({start_time}s)")
-        end_time = min(end_time, clip_duration)
-
-    segment_duration = (end_time if end_time is not None else clip_duration) - start_time
-    if segment_duration <= 0:
-        segment_duration = clip_duration
-
-    if requested_fps > 0:
-        fps = requested_fps
-        nframes = int(segment_duration * fps)
-        nframes = max(MIN_FRAMES, min(max_frames, nframes))
-    else:
-        fps, nframes = compute_dynamic_fps(
-            segment_duration,
-            30.0,
-            MIN_FRAMES,
-            max_frames,
-            DEFAULT_FPS,
-        )
-
-    # First frame at start_time, last at end_time.
-    seg_end = end_time if end_time is not None else clip_duration
-    seek_end = min(seg_end, clip_duration - 1.0 / 30.0)
-    span = seek_end - start_time
-    if nframes <= 1 or span <= 0:
-        timestamps = [start_time]
-    else:
-        step = span / (nframes - 1)
-        timestamps = [start_time + i * step for i in range(nframes)]
-    timestamps_ms = [int(t * 1000) for t in timestamps]
-
-    frames = oss.snapshot_frames(oss_info, timestamps_ms, max_dim)
-
-    fps = len(frames) / segment_duration if segment_duration > 0 else fps
-
-    first_ts = frames[0][0] if frames else start_time
-    last_ts = frames[-1][0] if frames else start_time
-    summary = (
-        f"Video: {video_path} (OSS) | "
-        f"{clip_duration:.1f}s | {len(frames)} frames @ {fps:.1f}fps "
-        f"[{format_timestamp(first_ts, last_ts)}–{format_timestamp(last_ts, last_ts)}] | "
-        f"{max_dim}px"
-    )
-
-    content: list[dict[str, Any]] = [text(summary)]
-    for ts, b64 in frames:
-        ts_display = format_timestamp(ts, last_ts)
-        content.append(text(f"<{ts_display}>"))
-        content.append(image(b64))
-    return content
-
-
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     video_path = arguments.get("video_path", "")
     if not os.path.isfile(video_path):
-        oss_info = oss.resolve_video(video_path)
-        if oss_info is None:
-            return text_error(f"file not found: {video_path}")
-        try:
-            return _handle_oss_video(arguments, oss_info)
-        except Exception as e:
-            return text_error(f"OSS fallback failed: {e}")
+        return text_error(f"file not found: {video_path}")
 
     budget = arguments.get("budget", DEFAULT_BUDGET)
     max_pixels = budget_to_pixels(budget, VIDEO_BUDGET_TOKENS)

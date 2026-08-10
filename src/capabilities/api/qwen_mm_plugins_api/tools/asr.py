@@ -19,7 +19,6 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from shared import oss
 from shared.content import text_error
 from shared.env import get_env
 from shared.syscmd import find_tool
@@ -195,19 +194,9 @@ def _format_text(chunks: list[tuple[float, float, list[str]]]) -> str:
 
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     file_path = arguments.get("file_path", "")
-    oss_url = None
-    if os.path.isfile(file_path):
-        file_path = os.path.realpath(file_path)
-    else:
-        oss_info = oss.resolve_video(file_path)
-        if oss_info is None:
-            return text_error(f"file not found: {file_path}")
-        try:
-            oss_url = oss.signed_url(oss_info)
-        except Exception as e:
-            return text_error(f"file not found locally and OSS fallback failed: {e}")
-
-    media_path = oss_url or file_path
+    if not os.path.isfile(file_path):
+        return text_error(f"file not found: {file_path}")
+    media_path = os.path.realpath(file_path)
 
     model = arguments.get("model") or "qwen3-asr-flash"
     api_key = arguments.get("api_key") or get_env("DASHSCOPE_API_KEY") or ""
