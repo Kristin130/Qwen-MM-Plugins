@@ -7,6 +7,7 @@ dry_run request shape, and output formatting (with the model boundary mocked); a
 test hits the real Omni endpoint only when DASHSCOPE_API_KEY is set.
 """
 
+import base64
 import json
 import os
 import tempfile
@@ -396,6 +397,18 @@ def test_audio_data_url_omits_the_mime_prefix(tmp_path):
     wav.write_bytes(b"RIFF")
     part = api_omni.omni_audio_part(str(wav))
     assert part["input_audio"]["data"].startswith("data:;base64,")
+    assert part["input_audio"]["format"] == "wav"
+
+
+def test_audio_raw_b64_optin_strips_the_wrapper(tmp_path, monkeypatch):
+    # QWEN_MM_AUDIO_RAW_B64 targets OpenAI-spec servers (e.g. vLLM), whose `input_audio.data`
+    # is RAW base64 — the data-URL wrapper fails their decoding with "Incorrect padding"
+    wav = tmp_path / "a.wav"
+    wav.write_bytes(b"RIFF")
+    monkeypatch.setenv("QWEN_MM_AUDIO_RAW_B64", "1")
+    part = api_omni.omni_audio_part(str(wav))
+    assert not part["input_audio"]["data"].startswith("data:")
+    assert base64.b64decode(part["input_audio"]["data"]) == b"RIFF"
     assert part["input_audio"]["format"] == "wav"
 
 

@@ -169,9 +169,19 @@ def omni_audio_part(source: str, *, audio_format: str | None = None) -> dict:
 
     A local file becomes the bare ``data:;base64,…`` form the DashScope docs show for audio (the type
     is carried by ``format``, not a mime prefix).
+
+    That wrapper is DashScope-specific: OpenAI's spec — and vLLM, which implements it — expects
+    ``data`` to be RAW base64. Against a self-hosted server the wrapped form fails base64 decoding
+    ("Incorrect padding"), so ``QWEN_MM_AUDIO_RAW_B64=1`` strips it. The size guard in ``_data_url``
+    still runs either way.
     """
     fmt = (audio_format or Path(source).suffix.lstrip(".") or "wav").lower()
-    data = source if is_url(source) else _data_url(source, "audio/wav", omit_mime=True)
+    if is_url(source):
+        data = source
+    else:
+        data = _data_url(source, "audio/wav", omit_mime=True)
+        if (get_env("QWEN_MM_AUDIO_RAW_B64") or "").lower() in ("1", "true", "yes", "on"):
+            data = data.split(",", 1)[1]
     return {"type": "input_audio", "input_audio": {"data": data, "format": fmt}}
 
 
