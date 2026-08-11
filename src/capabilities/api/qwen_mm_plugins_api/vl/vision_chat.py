@@ -47,7 +47,9 @@ TOOL: dict[str, Any] = {
         "Local videos are sampled into inline frames, so per request keep ≤ 250 items total "
         "(frames + images) and fps = frames / duration within [0.1, 10] — set video_max_frames to the "
         "video's length; for videos over ~40 min use read_video instead. "
-        "Remote video URLs are handled server-side. "
+        "Remote video URLs are handled server-side. When OSS is configured (OSS_AK/OSS_SK/OSS_ENDPOINT/"
+        "OSS_BUCKET) a local video is uploaded and sampled server-side instead, lifting the inline frame "
+        "cap (still bounded by the model's server-side video-duration limit, e.g. 2 h for qwen3.7-plus). "
         "Use dry_run=true to preview the request payload without calling."
     ),
     "args": VisionChatArgs,
@@ -80,7 +82,8 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         for img in images:
             content.append(encode_image_source(img))
         for vid in videos:
-            content.append(encode_video_source(vid, video_max_frames))
+            # dry_run must not hit the network, so suppress the OSS upload and preview the local path.
+            content.append(encode_video_source(vid, video_max_frames, allow_upload=not dry_run, model=model))
         content.append({"type": "text", "text": text})
         messages = [{"role": "user", "content": content}]
 
@@ -96,7 +99,16 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             kwargs["extra_body"] = {"vl_high_resolution_images": True}
 
         if dry_run:
-            payload = {"base_url": base_url, "request": kwargs}
+            payload: dict[str, Any] = {"base_url": base_url, "request": kwargs}
+            from shared import oss
+
+            local_videos = [v for v in videos if not v.startswith(("http://", "https://", "data:"))]
+            if local_videos and oss.is_upload_configured():
+                payload["note"] = (
+                    "OSS is configured — on a real call each local video is uploaded and passed as a "
+                    "signed video_url (sampled server-side, no frame cap), NOT the inline frames "
+                    "previewed here."
+                )
             for msg in payload["request"]["messages"]:
                 for item in msg.get("content", []):
                     if item.get("type") == "video" and "video" in item:

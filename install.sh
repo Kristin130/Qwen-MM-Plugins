@@ -23,13 +23,12 @@ CONFIG_FILE="${QWEN_MM_CONFIG:-$CONFIG_DIR/config}"
 QMP_DRY=0
 
 # ── capability catalog — the ONE place capabilities are declared; every menu iterates this ──
-CAP_ITEMS=(core api search video-memory video-edit omni-av blender freecad edu-agent)
+CAP_ITEMS=(core api search video-memory video-edit blender freecad edu-agent)
 CAP_DESC=("read/visualize any local file — images, video, docs, 3D"
-          "cloud VL APIs: vision_chat, ocr, grounding, segmentation, ASR"
+          "cloud media APIs by model family: VL (vision_chat/ocr/grounding), Omni A/V, ASR, segmentation"
           "web + reverse-image search (Serper) to confirm facts"
           "hierarchical graph memory for long-video QA"
           "video-edit + image/video/audio generation"
-          "Omni audio/video understanding: ASR, captioning, grounding, counting"
           "drive a running Blender: 3D modeling / materials / render (thin client)"
           "drive a running FreeCAD: parametric CAD / STEP·STL / FEM (thin client)"
           "step-by-step Chinese math/science tutorial videos (skill-only)")
@@ -64,15 +63,13 @@ CONFIG_SPEC=(
   "QWEN_MM_CACHE|0|dirs|OS cache dir|cache dir for derived render artifacts"
   "QWEN_MM_FFMPEG_TIMEOUT|0|dirs|120|ffmpeg/ffprobe timeout seconds"
   "QWEN_MM_MAX_TOTAL_FRAMES|0|dirs|600|max frames sampled from a video"
-  "QWEN_MM_MAX_RESPONSE_BYTES|0|dirs|15 MiB|max tool response size in bytes"
-  "QWEN_MM_STREAM_THRESHOLD|0|dirs|1 MiB|stream outputs larger than this many bytes"
   "GRAPH_MEMORY_PATH|0|memory||graph_memory.json path (overrides a passed video path)"
   "EMBEDDINGS_PATH|0|memory||embeddings.npz path"
   "CUTOFF_SEC|0|memory||time cutoff (seconds) for retrieval"
   "OSS_AK|1|oss||OSS access key id"
   "OSS_SK|1|oss||OSS access key secret"
   "OSS_ENDPOINT|0|oss||OSS endpoint"
-  "OSS_BUCKET|0|oss||upload-destination bucket for upload_and_sign (build clips / omni-av oversized media)"
+  "OSS_BUCKET|0|oss||upload-destination bucket for upload_and_sign (build clips / api oversized video)"
   "OSS_VIDEO_CLIP_PREFIX|0|oss|tmp/video_clips|key prefix for uploaded clips"
   "OSS_URL_EXPIRY|0|oss|7200|signed-URL TTL seconds"
   "BLENDER_BINARY|0|hosts||path to the Blender executable"

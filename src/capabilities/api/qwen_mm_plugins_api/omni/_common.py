@@ -51,6 +51,7 @@ from shared.api_omni import (
     jpeg_data_url,
     omni_audio_part,
     omni_frames_part,
+    omni_video_max_sec,
     omni_video_part,
     resolve_omni_endpoint,
 )
@@ -433,8 +434,26 @@ def _frames_and_audio_parts(file_path: str, fps: float, max_pixels: int, cleanup
     return parts
 
 
-def _local_video_parts(file_path: str, fps: float, max_pixels: int, cleanup: list[str]) -> list[dict]:
-    """Route a local video: one fitted file, else an OSS URL, else frames + audio."""
+def _local_video_parts(
+    file_path: str, fps: float, max_pixels: int, cleanup: list[str], max_video_sec: float | None, model: str
+) -> list[dict]:
+    """Route a local video: one fitted file, else an OSS URL, else frames + audio.
+
+    A file longer than the model's server-side video-duration cap can't be sampled whole (inline or by
+    signed URL), so it degrades UP FRONT to frames + audio — a bounded image list plus the sound track,
+    which the endpoint never samples as a timeline. Within the cap, delivery is unchanged: one fitted
+    inline file, else an OSS URL, else (oversized, no OSS) frames + audio.
+    """
+    from shared.video import video_duration_exceeds
+
+    if video_duration_exceeds(file_path, max_video_sec):
+        log.warning(
+            "video %s exceeds the server-side duration limit for model %r; sending frames + audio instead",
+            file_path,
+            model,
+        )
+        return _frames_and_audio_parts(file_path, fps, max_pixels, cleanup)
+
     mp4 = _temp_file(".mp4", prefix="omni_av_")
     cleanup.append(mp4)
     try:
@@ -450,7 +469,7 @@ def _local_video_parts(file_path: str, fps: float, max_pixels: int, cleanup: lis
                 log.warning("OSS upload failed (%s); falling back to frames + audio", upload_error)
             else:
                 return [omni_video_part(url, fps=fps, max_pixels=max_pixels)]
-        return _frames_and_audio_parts(file_path, fps, max_pixels, cleanup)
+        return _frames_and_audio_parts(file_path, fps, max_pixels, cleanup)  # frames: exempt from the cap
     except Exception as e:  # noqa: BLE001 — best-effort: send the original file unprocessed
         log.warning("video preprocess failed (%s)", e)
         # Only fall back when the original already fits: shipping an over-limit payload just trades
@@ -462,7 +481,15 @@ def _local_video_parts(file_path: str, fps: float, max_pixels: int, cleanup: lis
     return [omni_video_part(mp4, fps=fps, max_pixels=max_pixels)]
 
 
-def _build_media_parts(file_path: str, mode: str, fps: float, max_pixels: int, cleanup: list[str]) -> list[dict]:
+def _build_media_parts(
+    file_path: str,
+    mode: str,
+    fps: float,
+    max_pixels: int,
+    cleanup: list[str],
+    max_video_sec: float | None,
+    model: str,
+) -> list[dict]:
     """The real media parts for a live call (may transcode media into temp files → ``cleanup``).
 
     One part in the common cases; two or three when a local video has to travel as frames + audio.
@@ -477,7 +504,7 @@ def _build_media_parts(file_path: str, mode: str, fps: float, max_pixels: int, c
         )
     if mode == "audio" or not has_video_stream(file_path):
         return [_local_audio_part(file_path, cleanup, budget=OMNI_MAX_UPLOAD_BYTES)]
-    return _local_video_parts(file_path, fps, max_pixels, cleanup)
+    return _local_video_parts(file_path, fps, max_pixels, cleanup, max_video_sec, model)
 
 
 def _dry_run_blocks(file_path: str, prompt: str, mode: str, fps: float, max_pixels: int, model: str) -> list[dict]:
@@ -553,7 +580,7 @@ def run_omni(
 
     cleanup: list[str] = []
     try:
-        parts = _build_media_parts(file_path, mode, fps, max_pixels, cleanup)
+        parts = _build_media_parts(file_path, mode, fps, max_pixels, cleanup, omni_video_max_sec(model), model)
         if any(p.get("type") == "video" and isinstance(p.get("video"), list) for p in parts) and (
             "qwen3.5-omni" not in model
         ):

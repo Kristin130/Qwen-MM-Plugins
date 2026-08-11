@@ -23,10 +23,9 @@ We ship [**cookbooks**](cookbooks/) of Qwen3.8-Max + these plugins in action —
 | Capability | What it does | Install name | Cookbook |
 |---|---|---|---|
 | **core** | Local I/O plugin: read images and video in dynamic resolution, and visualize any file (e.g. docs, 3D, and more) — plus some image tools (crop, annotate, extract frames) | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
-| **api** | Cloud vision-language APIs for understanding media: vision chat, OCR, grounding, ASR, and segmentation (SAM3); currently supports DashScope | `qwen-mm-plugins-api` | [TBD](cookbooks/core/usage.md) |
+| **api** | Cloud APIs for understanding media, by model family: VL (vision chat, OCR, grounding), Omni A/V (timestamped captioning, ASR / multi-speaker diarization, temporal grounding, event counting), plus ASR and segmentation (SAM3); currently supports DashScope | `qwen-mm-plugins-api` | [link](cookbooks/api/usage.md) |
 | **search** | Web + reverse-image search to confirm facts: web search, page extraction, reverse image search; currently supports Serper | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
 | **video-memory** | Long-video memory: a hierarchical graph memory that powers QA over very long videos | `qwen-mm-plugins-video-memory` | [TBD](cookbooks/video-memory/usage.md) |
-| **omni-av** | Omni-native audio/video understanding: ASR with optional timestamps and speaker labels, temporal captioning/grounding, event counting, and music tagging | `qwen-mm-plugins-omni-av` | [TBD](cookbooks/omni-av/usage.md) |
 | **video-edit** | Video editing + generation: editing workflows + image / video / audio generation | `qwen-mm-plugins-video-edit` | [TBD](cookbooks/video-edit/usage.md) |
 | **blender** | Blender 3D modeling: drive a **running** Blender via Python (thin client, 22 tools) — modeling / materials / lighting / rendering | `qwen-mm-plugins-blender` | [TBD](cookbooks/blender/usage.md) |
 | **freecad** | FreeCAD parametric CAD: drive a **running** FreeCAD (thin client, 14 tools) — modeling, property edits, STEP/STL import/export, FEM analysis | `qwen-mm-plugins-freecad` | [TBD](cookbooks/freecad/usage.md) |
@@ -60,7 +59,7 @@ environment; native Windows has not yet been validated. See the concise
 
 Prefer your harness's own commands — or you're on opencode / pi / QwenPaw, which the installer doesn't cover? Register the skill + MCP yourself.
 
-**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw · Qwen Code) — add the marketplace, then install a capability (replace `<cap>` with `core` / `api` / `search` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`):
+**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw · Qwen Code) — add the marketplace, then install a capability (replace `<cap>` with `core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad`). Install `core` by default — it's the local-I/O base every other capability builds on — plus whichever others you need:
 
 ```bash
 # Claude Code
@@ -110,20 +109,18 @@ Once a capability is installed, reference a file in your harness and just ask �
 @dashboard-4k.png      Read every number in this dashboard.
 @report.pdf            Summarize page 3.
 
-# api — cloud VL APIs: caption / OCR / grounding / segmentation / ASR
+# api — cloud VL + Omni APIs: caption / OCR / grounding / segmentation / ASR, plus Omni audio-video understanding
 @receipt.jpg           OCR this and total the line items.
-@street.jpg            Draw a box around every car in the scene.   # grounding
+@street.jpg            Draw a box around every car in the scene.                    # grounding
+@meeting.mp4           Transcribe this with speaker labels and timestamps.          # omni
+@sports-clip.mp4       Count every completed pass and list when each one occurs.    # omni
+@song.mp3              Tag the genre, mood, instruments, key, and vocal profile.    # omni
 
 # search — web + reverse-image search to confirm what's on screen
 @place.jpg             Where was this photo taken?                 # image_search + web_search
 
 # video-memory — QA over long videos; the first query auto-builds memory
 @lecture-2h.mp4        What are the main points, with timestamps?
-
-# omni-av — short-clip audio/video understanding with Qwen-Omni
-@meeting.mp4           Transcribe this with speaker labels and timestamps.
-@sports-clip.mp4       Count every completed pass and list when each one occurs.
-@song.mp3              Tag the genre, mood, instruments, key, and vocal profile.
 
 # video-edit — image / video / audio generation + editing workflows
                        Generate a 1024×1024 image of a red panda coding at night.

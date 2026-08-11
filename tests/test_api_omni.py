@@ -1,9 +1,10 @@
-"""Tests for the omni-av capability (Omni audio/video atomic tools).
+"""Tests for the Omni audio/video atomic tools (the api ``omni/`` subpackage).
 
-conftest auto-discovers qwen_mm_plugins_omni_av (it scans src/capabilities/*/ for the server
-package), so it imports like any other server. Offline tests cover the registry, the dry_run request
-shape, and output formatting (with the model boundary mocked); a reachability-marked test hits the
-real Omni endpoint only when DASHSCOPE_API_KEY is set.
+The Omni tools live in the qwen-mm-plugins-api capability (``qwen_mm_plugins_api.omni``) alongside the
+VL and other cloud tools. conftest auto-discovers the api server package (it scans src/capabilities/*/
+for the server package), so it imports like any other server. Offline tests cover the registry, the
+dry_run request shape, and output formatting (with the model boundary mocked); a reachability-marked
+test hits the real Omni endpoint only when DASHSCOPE_API_KEY is set.
 """
 
 import json
@@ -14,9 +15,8 @@ import pytest
 
 pytest.importorskip("mcp")  # importing the server pulls in the mcp SDK
 
-import qwen_mm_plugins_omni_av as oav
-from qwen_mm_plugins_omni_av.tools import _common
-
+import qwen_mm_plugins_api as oav
+from qwen_mm_plugins_api.omni import _common
 from shared import api_omni
 from shared.env import get_env
 
@@ -45,13 +45,15 @@ def _preview(blocks) -> dict:
 
 # ── Registry ───────────────────────────────────────────────────────────────────────────────────
 def test_lists_the_tools():
-    assert {t["name"] for t in oav.list_tools()} == _EXPECTED
+    # The api server also serves the VL and other tools; assert the Omni family is registered here.
+    assert _EXPECTED <= {t["name"] for t in oav.list_tools()}
 
 
 def test_every_tool_has_schema_and_handler():
-    for tool in oav.list_tools():
+    for name in _EXPECTED:
+        tool = next(t for t in oav.list_tools() if t["name"] == name)
         assert tool["inputSchema"]["type"] == "object"
-        assert callable(oav.get_handler(tool["name"]))
+        assert callable(oav.get_handler(name))
 
 
 # ── dry_run: request shape, no network, no file read ─────────────────────────────────────────────

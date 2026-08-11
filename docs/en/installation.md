@@ -21,7 +21,7 @@ Windows environment; native Windows has not yet been validated.
 
 Harnesses without a plugin marketplace register the **skill** and **MCP server** in their own config. **Qwen Code** and **Gemini CLI** are automated by the [guided installer](../../README.md#-installation) (`bash install.sh` → pick the harness); the rest (opencode, pi, QwenPaw, …) are manual — per-harness steps below. For anything else, the easiest path is to **ask the agent to do it for you** ("install `qwen-mm-plugins-<cap>`").
 
-Each capability is `qwen-mm-plugins-<cap>` with uvx extras `[<cap>]`; in every block below, replace `<cap>` with a capability name (`core` / `api` / `search` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`).
+Each capability is `qwen-mm-plugins-<cap>` with uvx extras `[<cap>]`; in every block below, replace `<cap>` with a capability name (`core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad`).
 
 Claude Code can also install this way — the only difference from the marketplace path is the tool name: marketplace installs carry a plugin prefix + a server key (the capability's own name, e.g. `qwen-mm-plugins-<cap>`), whereas a manual `mcp add` uses the server name you choose. Taking a capability's `read_image` as an example:
 
@@ -200,8 +200,6 @@ Config is read from the shell environment, falling back to `~/.qwen-mm-plugins/c
 | `ASR_SERVER_URLS` | `transcribe_audio` self-hosted fallback (comma-separated, round-robined) when DashScope fails | *unset → DashScope only* |
 | `QWEN_MM_FFMPEG_TIMEOUT` | ffmpeg timeout, seconds | `120` |
 | `QWEN_MM_MAX_TOTAL_FRAMES` | max frames sampled from a video | `600` |
-| `QWEN_MM_MAX_RESPONSE_BYTES` | max tool response size | `15 MiB` |
-| `QWEN_MM_STREAM_THRESHOLD` | stream outputs larger than this | `1 MiB` |
 | `QWEN_MM_CACHE` | cache dir for derived render artifacts | OS cache dir |
 | `QWEN_MM_CONFIG_DIR` | override the config dir that GUI harnesses read for keys | `~/.qwen-mm-plugins` |
 | `QWEN_MM_CONFIG` | override the full config-file path | `<config dir>/config` |

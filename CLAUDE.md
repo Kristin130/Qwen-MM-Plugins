@@ -7,15 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Qwen-MM-Plugins is an Agent Skills + MCP Tools platform for vision-language models. Each capability lives in one directory under `src/capabilities/<name>/`, holding any of: a `skill/` (the Agent Skill) and a `<import_name>/` MCP-server package — each part optional. Main subsystems:
 
 1. **qwen-mm-plugins-core** — Local file capability: read and visualize any file (images, video, PDF/Office, code, data, 3D, notebooks, GIS) via `read_image`/`read_video`/`media_info`/`visualize`, plus image tools (`crop`/`draw_bbox`/`save_view`). `src/capabilities/core/` (skill + `qwen_mm_plugins_core/` server).
-2. **qwen-mm-plugins-api** — Cloud vision-language APIs for understanding media: `vision_chat`, `ocr`, `grounding`, `transcribe_audio` + `segmentation` (SAM3); currently DashScope, via `shared.api_openai`. `src/capabilities/api/` (skill + `qwen_mm_plugins_api/` server).
+2. **qwen-mm-plugins-api** — Cloud APIs for understanding media, split by model family into three subpackages (directory == category): `vl/` (`vision_chat`, `ocr`, `grounding` — Qwen-VL, via `shared.api_openai`), `omni/` (Qwen-Omni A/V: `omni_av_caption`, `omni_asr`/`omni_asr_timestamped`/`omni_multi_speaker_asr`, `omni_av_grounding`, `omni_av_counting`, `omni_music_caption` — via `shared.api_omni`), and `others/` (`transcribe_audio` — Qwen3-ASR, `segmentation` — SAM3); currently DashScope. 12 tools total. `src/capabilities/api/` (skill + `qwen_mm_plugins_api/` server).
 3. **qwen-mm-plugins-search** — Web + reverse-image search to confirm facts: `web_search`, `web_extractor`, `image_search`; currently Serper. `src/capabilities/search/` (skill + `qwen_mm_plugins_search/` server).
-4. **qwen-mm-plugins-omni-av** — Omni-model audio/video understanding: timestamped captioning, ASR (plain/controllable/multi-speaker), temporal grounding, event counting (via `shared.api_omni`). Overlaps `api`'s caption/asr/grounding by design (different model). `src/capabilities/omni-av/` (skill + `qwen_mm_plugins_omni_av/` server).
-5. **qwen-mm-plugins-video-memory** — Hierarchical graph memory for long video QA. 4-level tree: Root → SuperEvent → MacroEvent → Subgraph, with embedding-based semantic search. `src/capabilities/video-memory/` (skill + `qwen_mm_plugins_video_memory/` server).
-6. **qwen-mm-plugins-video-edit** — Video-editing skill + image/video/audio **generation** MCP tools (DashScope, via `shared.api_dashscope`). `src/capabilities/video-edit/` (skill + `qwen_mm_plugins_video_edit/` server).
-7. **qwen-mm-plugins-blender** — Blender 3D modeling: MCP tools driving a live Blender (execute Python, viewport screenshots, PolyHaven/Sketchfab/Hyper3D/Hunyuan3D assets) + a build→refine→verify skill; needs a running Blender + addon. `src/capabilities/blender/`.
-8. **qwen-mm-plugins-freecad** — FreeCAD parametric CAD: MCP tools (create/edit objects, execute Python, named-view screenshots, parts library, CalculiX FEM) + a skill; needs a running FreeCAD + addon. `src/capabilities/freecad/`.
-9. **qwen-mm-plugins-edu-agent** — Skill only: turns a math/science problem or image into a step-by-step Chinese explainer video or interactive page. `src/capabilities/edu-agent/`.
-10. **qwen-mm-plugins-example** — Template capability (skill + server, 5 demo tools) to copy when adding your own. `src/capabilities/example/`.
+4. **qwen-mm-plugins-video-memory** — Hierarchical graph memory for long video QA. 4-level tree: Root → SuperEvent → MacroEvent → Subgraph, with embedding-based semantic search. `src/capabilities/video-memory/` (skill + `qwen_mm_plugins_video_memory/` server).
+5. **qwen-mm-plugins-video-edit** — Video-editing skill + image/video/audio **generation** MCP tools (DashScope, via `shared.api_dashscope`). `src/capabilities/video-edit/` (skill + `qwen_mm_plugins_video_edit/` server).
+6. **qwen-mm-plugins-blender** — Blender 3D modeling: MCP tools driving a live Blender (execute Python, viewport screenshots, PolyHaven/Sketchfab/Hyper3D/Hunyuan3D assets) + a build→refine→verify skill; needs a running Blender + addon. `src/capabilities/blender/`.
+7. **qwen-mm-plugins-freecad** — FreeCAD parametric CAD: MCP tools (create/edit objects, execute Python, named-view screenshots, parts library, CalculiX FEM) + a skill; needs a running FreeCAD + addon. `src/capabilities/freecad/`.
+8. **qwen-mm-plugins-edu-agent** — Skill only: turns a math/science problem or image into a step-by-step Chinese explainer video or interactive page. `src/capabilities/edu-agent/`.
+9. **qwen-mm-plugins-example** — Template capability (skill + server, 5 demo tools) to copy when adding your own. `src/capabilities/example/`.
 
 ## Video Content Questions — MANDATORY Skill Usage
 
@@ -96,7 +95,7 @@ tests/  eval/  ruff.toml
 
 ## Key Patterns
 
-**Tool auto-discovery** (all servers, via the shared `mcp_framework` module): create a `.py` exporting `TOOL` (a dict with `name`, `description`, and a Pydantic `args` model) + `handle(arguments) -> list[content-dict]` in a scanned subpackage and it's auto-registered at server start — no manual registration. Each package's `__init__.py` calls `mcp_framework.build_registry(__name__, [subpackages])` → `SPECS` + `get_handler()` (`list_tools()` derives the wire metadata). `run_main` → `mcp_framework.serve(...)` bridges the specs onto the SDK's **FastMCP**: it synthesizes a typed wrapper per tool (signature from the `args` model, so FastMCP generates the `inputSchema` and validates every call), overrides the advertised schema with a normalized `tool_schema(args)` (auto-`title` stripped + `$ref` inlined — kept semantically identical to the old hand-written style), then runs `handle` in a worker thread (`anyio.to_thread`); `handle` still gets a plain dict and returns `{"type": "text"|"image", ...}` blocks. core scans `readers/`/`visualizers/`/`producers/`; api/search scan `tools/`; video-memory scans `tools/`, resolving the shared `MemoryToolkit` via `loader.get_toolkit()`. `mcp_framework` depends only on the `mcp` SDK (which bundles FastMCP), so it doesn't couple the servers to each other.
+**Tool auto-discovery** (all servers, via the shared `mcp_framework` module): create a `.py` exporting `TOOL` (a dict with `name`, `description`, and a Pydantic `args` model) + `handle(arguments) -> list[content-dict]` in a scanned subpackage and it's auto-registered at server start — no manual registration. Each package's `__init__.py` calls `mcp_framework.build_registry(__name__, [subpackages])` → `SPECS` + `get_handler()` (`list_tools()` derives the wire metadata). `run_main` → `mcp_framework.serve(...)` bridges the specs onto the SDK's **FastMCP**: it synthesizes a typed wrapper per tool (signature from the `args` model, so FastMCP generates the `inputSchema` and validates every call), overrides the advertised schema with a normalized `tool_schema(args)` (auto-`title` stripped + `$ref` inlined — kept semantically identical to the old hand-written style), then runs `handle` in a worker thread (`anyio.to_thread`); `handle` still gets a plain dict and returns `{"type": "text"|"image", ...}` blocks. core scans `readers/`/`visualizers/`/`producers/`; api scans `vl/`/`omni/`/`others/` (by model family); search and video-memory scan `tools/`, the latter resolving the shared `MemoryToolkit` via `loader.get_toolkit()`. `mcp_framework` depends only on the `mcp` SDK (which bundles FastMCP), so it doesn't couple the servers to each other.
 
 **Graph memory build phases** (`src/capabilities/video-memory/skill/script/build_memory/build_graph.py`; `build_memory.sh` orchestrates chunked P1+P2 then P3):
 - P1: `step1_scene_detect_segmentation` — HLS frame-diff scene-cut segmentation into macro events
@@ -119,8 +118,6 @@ When OSS creds (`OSS_AK`/`OSS_SK`) are set the VLM gets clipped-video URLs (`cli
 | `QWEN_MM_FFMPEG_TIMEOUT` | ffmpeg timeout seconds (default: 120) |
 | `QWEN_MM_CHAT_TIMEOUT` | OpenAI-compatible chat request timeout seconds (default: 600) |
 | `QWEN_MM_MAX_TOTAL_FRAMES` | Max frames sampled from a video (default: 600) |
-| `QWEN_MM_MAX_RESPONSE_BYTES` | Max tool response size in bytes (default: 15 MiB) |
-| `QWEN_MM_STREAM_THRESHOLD` | Stream outputs larger than this many bytes (default: 1 MiB) |
 | `QWEN_MM_CACHE` | Override the cache dir for derived render artifacts (default: OS cache dir) |
 | `GRAPH_MEMORY_PATH` | graph_memory.json path (video-memory MCP server; takes precedence over a passed video path) |
 | `EMBEDDINGS_PATH` | embeddings.npz path (video-memory MCP server) |
@@ -131,8 +128,8 @@ When OSS creds (`OSS_AK`/`OSS_SK`) are set the VLM gets clipped-video URLs (`cli
 | Variable | Scope | Purpose |
 |----------|-------|---------|
 | `OSS_AK` / `OSS_SK` / `OSS_ENDPOINT` | shared | Credentials + endpoint |
-| `OSS_BUCKET` | build / omni-av | Upload-destination bucket for `upload_and_sign` (memory-build clips, omni-av oversized media) |
-| `OSS_VIDEO_CLIP_PREFIX` | build / omni-av | Key prefix for uploaded clips (default: `tmp/video_clips`) |
+| `OSS_BUCKET` | build / api | Upload-destination bucket for `upload_and_sign` (memory-build clips, api video/Omni oversized media) |
+| `OSS_VIDEO_CLIP_PREFIX` | build / api | Key prefix for uploaded clips (default: `tmp/video_clips`) |
 | `OSS_URL_EXPIRY` | shared | Signed-URL TTL seconds (default: 7200) |
 
 **App hosts (optional)** — blender/freecad live sessions + edu-agent rendering. Full catalog: `src/shared/env.py` `CONFIG_FIELDS` (regenerate these tables via `python3 scripts/gen_env_docs.py`).
