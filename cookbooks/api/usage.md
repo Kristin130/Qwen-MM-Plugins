@@ -63,6 +63,7 @@ claude plugin install qwen-mm-plugins-api@qwen-mm-plugins
 |-------------|-------------|
 | `DASHSCOPE_API_KEY` | Required — authenticates all Qwen-VL, Qwen-Omni, and Qwen3-ASR requests. |
 | `DASHSCOPE_BASE_URL` | Optional — overrides the OpenAI-compatible endpoint for a proxy or gateway. |
+| `QWEN_MM_AUDIO_RAW_B64` | Optional — set to `1` when `DASHSCOPE_BASE_URL` points at an OpenAI-spec server (e.g. vLLM): audio is sent as raw base64 instead of the DashScope-style `data:;base64,…` form, which such servers reject. Leave unset for DashScope. |
 | `SAM3_SERVER_URL` | Required only for `segmentation` (self-hosted SAM3 server). |
 | `ffmpeg` + `ffprobe` | Required for audio extraction, transcoding, and frame sampling/fitting. |
 | `OSS_AK`, `OSS_SK`, `OSS_ENDPOINT`, `OSS_BUCKET` | Optional — upload oversized local video and pass a signed URL instead of local frame sampling. Install the `oss` extra as well. |

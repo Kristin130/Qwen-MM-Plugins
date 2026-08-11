@@ -117,6 +117,7 @@ When OSS creds (`OSS_AK`/`OSS_SK`) are set the VLM gets clipped-video URLs (`cli
 | `ASR_SERVER_URLS` | Comma-separated self-hosted ASR server URLs (transcribe_audio fallback when DashScope fails) |
 | `QWEN_MM_FFMPEG_TIMEOUT` | ffmpeg timeout seconds (default: 120) |
 | `QWEN_MM_CHAT_TIMEOUT` | OpenAI-compatible chat request timeout seconds (default: 600) |
+| `QWEN_MM_AUDIO_RAW_B64` | Send `input_audio` as raw base64 for OpenAI-spec servers like vLLM (default: off = DashScope `data:;base64,…` form) |
 | `QWEN_MM_MAX_TOTAL_FRAMES` | Max frames sampled from a video (default: 600) |
 | `QWEN_MM_CACHE` | Override the cache dir for derived render artifacts (default: OS cache dir) |
 | `GRAPH_MEMORY_PATH` | graph_memory.json path (video-memory MCP server; takes precedence over a passed video path) |
