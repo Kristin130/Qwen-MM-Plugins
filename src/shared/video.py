@@ -80,6 +80,24 @@ def probe_media(path: str) -> dict:
     return json.loads(result.stdout)
 
 
+def video_duration_exceeds(path: str, max_seconds: float | None) -> bool:
+    """True when a LOCAL file's duration exceeds ``max_seconds`` — the signal to prefer local frame
+    sampling over handing the whole file to the endpoint for server-side sampling (which caps video
+    duration per model).
+
+    False for a remote URL (can't probe; the server enforces its own limit), a falsy ``max_seconds``
+    (unknown model → no cap to apply), or an unprobeable file (ffprobe missing/unreadable) — the caller
+    should not force a downgrade on uncertainty.
+    """
+    if not max_seconds or path.startswith(("http://", "https://", "data:")):
+        return False
+    try:
+        duration = float(probe_media(path).get("format", {}).get("duration") or 0.0)
+    except Exception:  # noqa: BLE001 — ffprobe missing/unreadable: don't downgrade on uncertainty
+        return False
+    return duration > max_seconds
+
+
 def get_video_info(video_path: str) -> dict:
     result = subprocess.run(
         [

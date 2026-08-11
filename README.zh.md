@@ -23,10 +23,9 @@
 | 能力 | 做什么 | 安装名 | Cookbook |
 |---|---|---|---|
 | **core** | 本地 I/O 插件：动态分辨率读取图片与视频，可视化任意文件(如文档、3D 等)——外加一些图像工具(裁剪 / 标注 / 抽帧) | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
-| **api** | 云端视觉语言 API 理解媒体：视觉对话、OCR、grounding、ASR、分割(SAM3);目前支持 DashScope | `qwen-mm-plugins-api` | [TBD](cookbooks/core/usage.md) |
+| **api** | 云端 API 理解媒体，按模型族划分:VL(视觉对话、OCR、grounding)、Omni 音视频(带时间戳或说话人标签的 ASR / 多说话人分离、分段描述、时序定位、事件计数),外加 ASR 与分割(SAM3);目前支持 DashScope | `qwen-mm-plugins-api` | [link](cookbooks/api/usage.md) |
 | **search** | 联网 + 反查图搜索用于事实核验:网页搜索、网页抽取、反查图;目前支持 Serper | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
 | **video-memory** | 长视频记忆：层次化图记忆，支撑超长视频问答 | `qwen-mm-plugins-video-memory` | [link](cookbooks/video-memory/usage.md) |
-| **omni-av** | Omni 原生音视频理解：带时间戳或说话人标签的 ASR、分段描述、时序定位、事件计数与音乐标签 | `qwen-mm-plugins-omni-av` | [link](cookbooks/omni-av/usage.md) |
 | **video-edit** | 视频剪辑 + 生成：剪辑工作流 + 图片 / 视频 / 音频生成 | `qwen-mm-plugins-video-edit` | — |
 | **blender** | Blender 三维建模：对一个**正在运行**的 Blender 写 Python（瘦客户端，22 工具）—— 建模 / 材质 / 灯光 / 渲染 | `qwen-mm-plugins-blender` | [link](cookbooks/blender/usage.md) |
 | **freecad** | FreeCAD 参数化 CAD：驱动一个**正在运行**的 FreeCAD（瘦客户端，14 工具）—— 建模、改属性、STEP/STL 导入导出、FEM 分析 | `qwen-mm-plugins-freecad` | [link](cookbooks/freecad/usage.md) |
@@ -59,7 +58,7 @@ curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install
 
 想用 harness 自己的命令，或你在 opencode / pi / QwenPaw 上（安装器不覆盖这几个）？那就自己注册 skill + MCP。
 
-**有插件市场的 harness**（Claude Code · Qoder · Codex · OpenClaw · Qwen Code）—— 加市场，再装某个能力（把 `<cap>` 换成 `core` / `api` / `search` / `video-memory` / `omni-av` / `video-edit` / `blender` / `freecad`）：
+**有插件市场的 harness**（Claude Code · Qoder · Codex · OpenClaw · Qwen Code）—— 加市场，再装某个能力（把 `<cap>` 换成 `core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad`）。默认先装 `core`（本地 I/O 基座,其他能力都建立在它之上）,再按需装其他:
 
 ```bash
 # Claude Code
@@ -109,20 +108,18 @@ bash install.sh configure     # 交互式：API key、端点、目录、OSS、�
 @dashboard-4k.png      读出这张仪表盘里的每一个数字。
 @report.pdf            总结第 3 页。
 
-# api —— 云端 VL API：caption / OCR / grounding / 分割 / ASR
+# api —— 云端 VL + Omni API：caption / OCR / grounding / 分割 / ASR,外加 Omni 音视频理解
 @receipt.jpg           OCR 这张小票并把各行金额加总。
-@street.jpg            把画面里每一辆车都框出来。               # grounding
+@street.jpg            把画面里每一辆车都框出来。                    # grounding
+@meeting.mp4           带说话人标签和时间戳转写这段会议。            # omni
+@sports-clip.mp4       统计每次成功传球，并列出发生时间。            # omni
+@song.mp3              标注曲风、情绪、乐器、调性和人声特征。        # omni
 
 # search —— 联网 + 反查图，核实画面里的东西
 @place.jpg             这张照片是在哪拍的？                     # image_search + web_search
 
 # video-memory —— 对长视频提问；首次提问自动构建 memory
 @lecture-2h.mp4        这段视频的主要观点是什么？带上时间戳。
-
-# omni-av —— 用 Qwen-Omni 理解短音视频
-@meeting.mp4           带说话人标签和时间戳转写这段会议。
-@sports-clip.mp4       统计每次成功传球，并列出发生时间。
-@song.mp3              标注曲风、情绪、乐器、调性和人声特征。
 
 # video-edit —— 图片 / 视频 / 音频生成 + 剪辑工作流
                        生成一张 1024×1024 的图：小熊猫在深夜敲代码。

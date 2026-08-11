@@ -11,7 +11,7 @@
     {
       "name": "qwen-mm-plugins-api",
       "source": "./src/capabilities/api",
-      "description": "Cloud vision-language APIs for understanding media: vision chat, OCR, grounding, ASR, and segmentation (SAM3) as MCP tools; currently supports DashScope."
+      "description": "Cloud APIs for understanding media, by model family: VL (vision chat, OCR, grounding), Omni A/V (timestamped captioning, ASR / multi-speaker diarization, temporal grounding, event counting), plus ASR and segmentation (SAM3) — as MCP tools; currently supports DashScope."
     },
     {
       "name": "qwen-mm-plugins-search",
@@ -27,11 +27,6 @@
       "name": "qwen-mm-plugins-video-edit",
       "source": "./src/capabilities/video-edit",
       "description": "ffmpeg-based video-editing workflows (skill) + image/video/audio generation as MCP tools."
-    },
-    {
-      "name": "qwen-mm-plugins-omni-av",
-      "source": "./src/capabilities/omni-av",
-      "description": "Omni-model audio/video understanding: segmented captioning with timestamps, ASR (plain / controllable / multi-speaker diarized), temporal grounding, and event counting as MCP tools."
     },
     {
       "name": "qwen-mm-plugins-edu-agent",

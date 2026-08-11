@@ -24,6 +24,26 @@ DEFAULT_RETRY_BACKOFF = 1.0
 # hung connection can't pin a tool call for an hour. Overridable via QWEN_MM_CHAT_TIMEOUT.
 DEFAULT_CHAT_TIMEOUT = 600
 
+# Per-model video-duration ceilings for SERVER-SIDE sampling (seconds), from Bailian/Model Studio docs
+# (help.aliyun.com/zh/model-studio/vision, as of 2026-08). Prefix-matched against the model id; a model
+# with no entry is treated as "unknown" → no cap (the endpoint still enforces its own limit). Only
+# relevant on the OSS-upload path, where the whole video is sampled server-side.
+_VL_VIDEO_MAX_SEC: dict[str, int] = {
+    "qwen3.7-plus": 2 * 3600,  # flagship: up to 2 h / 2 GB
+    "qwen-vl-max": 20 * 60,  # 2 s – 20 min, ≤ 1 GB
+    "qwen3-vl": 20 * 60,
+}
+
+
+def vl_video_max_sec(model: str | None) -> int | None:
+    """Server-side video-duration cap (seconds) for a VL ``model``, or None when unknown."""
+    if not model:
+        return None
+    for prefix, cap in _VL_VIDEO_MAX_SEC.items():
+        if model.startswith(prefix):
+            return cap
+    return None
+
 
 def _chat_timeout() -> int:
     """QWEN_MM_CHAT_TIMEOUT (seconds), read at call time; unset/bad values fall back to the default."""
@@ -66,10 +86,40 @@ def encode_image_source(source: str) -> dict[str, Any]:
     return {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded}"}}
 
 
-def encode_video_source(source: str, max_frames: int = 128) -> dict[str, Any]:
-    """OpenAI-style video content part: a URL passthrough, or a local file sampled into frames."""
+def encode_video_source(
+    source: str, max_frames: int = 128, *, allow_upload: bool = True, model: str | None = None
+) -> dict[str, Any]:
+    """OpenAI-style video content part: a URL passthrough, an OSS upload, or a local file sampled
+    into frames.
+
+    Routing for a local video mirrors the Omni path (``shared.api_omni`` / the api ``omni/_common``) so
+    both share ONE trigger — ``shared.oss.is_upload_configured()``: when OSS is configured the file is
+    uploaded and handed over as a signed ``video_url`` (the endpoint samples it server-side, lifting the
+    inline frame cap); otherwise it is sampled locally into inline frames. That upload path samples the
+    whole video server-side, which caps duration per ``model`` — so a local file longer than the cap
+    skips the upload and degrades to local frame sampling instead (sparse for very long clips, but it
+    still returns a result). ``allow_upload=False`` suppresses the upload (used by ``dry_run`` so a
+    preview never touches the network).
+    """
     if is_url(source):
         return {"type": "video_url", "video_url": {"url": source}}
+
+    if allow_upload:
+        from shared import oss
+
+        if oss.is_upload_configured():
+            from shared.video import video_duration_exceeds
+
+            if video_duration_exceeds(source, vl_video_max_sec(model)):
+                log.warning(
+                    "video %s exceeds the server-side duration limit for model %r; sampling frames "
+                    "locally instead of uploading",
+                    source,
+                    model or DEFAULT_MODEL,
+                )
+            else:
+                url = oss.upload_and_sign(source, key_prefix=get_env("OSS_VIDEO_CLIP_PREFIX", "tmp/video_clips"))
+                return {"type": "video_url", "video_url": {"url": url}}
 
     from shared.env import DEFAULT_FPS, TOKEN_SIZE, VIDEO_MIN_PIXELS
     from shared.image import smart_resize

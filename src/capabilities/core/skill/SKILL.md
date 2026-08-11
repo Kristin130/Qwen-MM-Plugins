@@ -62,6 +62,5 @@ When juggling heterogeneous assets (action-cam clips, VFX/stock footage, voiceov
 ## Relationship to Other Capabilities
 
 Core is local-only. Cloud model/API calls live in separate capabilities — install them if you need those:
-- **Understand media with a model** (caption/VQA `vision_chat`, `ocr`, `grounding`, `segmentation`, `transcribe_audio`) → `qwen-mm-plugins-api`. Annotate its `grounding` output with `draw_bbox` here.
+- **Understand media with a model** → `qwen-mm-plugins-api`, grouped by model family: VL (`vision_chat`, `ocr`, `grounding`), Omni A/V (timestamped captioning, multi-speaker ASR, temporal grounding, event counting), plus `transcribe_audio` and `segmentation`. Annotate its `grounding` output with `draw_bbox` here.
 - **Confirm a fact / identify an entity** (reverse image + web) → `qwen-mm-plugins-search`. Grab the frame with `save_view` here first.
-- **Omni audio/video understanding** (timestamped caption, multi-speaker ASR, temporal grounding, counting) → `qwen-mm-plugins-omni-av`.

@@ -3,7 +3,7 @@
 The Omni model (default ``qwen3.5-omni-plus``) reads video frames AND the embedded audio track in a
 single call, and — unlike the plain VL path in ``api_openai`` — it **must** be called with
 ``stream=True`` + ``modalities=["text"]`` (+ ``stream_options.include_usage``). This module is the
-one place that speaks that protocol, so every ``omni-av`` tool shares it.
+one place that speaks that protocol, so every Omni tool (the api ``omni/`` subpackage) shares it.
 
 It targets the same OpenAI-compatible endpoint as ``api_openai`` (DashScope compatible-mode is the
 default ``base_url``) and reuses that module's endpoint resolution + URL helpers; streaming is done
@@ -46,9 +46,9 @@ DEFAULT_OMNI_MAX_PIXELS = 200704
 # the ENCODED string at 10 MB — the same cap for an image, an audio and a video item. base64 inflates
 # the raw bytes by 4/3, so the file itself must stay under 3/4 of that, minus a small margin for the
 # mime prefix and JSON framing; callers that transcode before upload size their output against
-# OMNI_MAX_UPLOAD_BYTES (see omni-av's _preprocess_video). Public URLs are exempt — remote media is
-# fetched and sampled server-side, up to 2 GB / 1 h of video (Qwen3.5-Omni) — which is why omni-av
-# uploads oversized media to OSS, or splits it into frames + audio, instead of raising this budget.
+# OMNI_MAX_UPLOAD_BYTES (see the omni tools' _preprocess_video). Public URLs are exempt — remote media
+# is fetched and sampled server-side, up to 2 GB / 1 h of video (Qwen3.5-Omni) — which is why the omni
+# tools upload oversized media to OSS, or split it into frames + audio, instead of raising this budget.
 OMNI_MAX_B64_BYTES = 10 * 1000 * 1000
 OMNI_MAX_UPLOAD_BYTES = int(OMNI_MAX_B64_BYTES * 3 / 4 * 0.97)
 
@@ -56,6 +56,27 @@ OMNI_MAX_UPLOAD_BYTES = int(OMNI_MAX_B64_BYTES * 3 / 4 * 0.97)
 # (2048 by URL); the lower models take fewer, so the frames path is Qwen3.5-only in practice.
 OMNI_MIN_FRAMES = 2
 OMNI_MAX_B64_FRAMES = 250
+
+# Per-model video-duration ceilings for SERVER-SIDE sampling (seconds), from Bailian/Model Studio docs
+# (help.aliyun.com/zh/model-studio/qwen-omni, as of 2026-08): Qwen3.5-Omni video ≤ 1 h (audio ≤ 3 h),
+# Qwen3-Omni-Flash ≤ 20 min, Qwen-Omni-Turbo ≤ 3 min. Prefix-matched; unknown model → no cap. Only
+# relevant where the whole file is sampled server-side (a signed URL).
+_OMNI_VIDEO_MAX_SEC: dict[str, int] = {
+    "qwen3.5-omni": 3600,
+    "qwen3-omni-flash": 20 * 60,
+    "qwen-omni-turbo": 3 * 60,
+}
+
+
+def omni_video_max_sec(model: str | None) -> int | None:
+    """Server-side video-duration cap (seconds) for an Omni ``model``, or None when unknown."""
+    if not model:
+        return None
+    for prefix, cap in _OMNI_VIDEO_MAX_SEC.items():
+        if model.startswith(prefix):
+            return cap
+    return None
+
 
 # HTTP statuses worth retrying (mirrors api_openai._RETRYABLE_STATUS).
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})

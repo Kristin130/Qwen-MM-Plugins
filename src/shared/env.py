@@ -151,8 +151,6 @@ CONFIG_FIELDS: list[tuple[str, bool, str, str, str]] = [
     ("QWEN_MM_FFMPEG_TIMEOUT", False, "Directories & limits", "120", "ffmpeg/ffprobe timeout seconds"),
     ("QWEN_MM_CHAT_TIMEOUT", False, "Directories & limits", "600", "OpenAI-compatible chat request timeout seconds"),
     ("QWEN_MM_MAX_TOTAL_FRAMES", False, "Directories & limits", "600", "max frames sampled from a video"),
-    ("QWEN_MM_MAX_RESPONSE_BYTES", False, "Directories & limits", "15 MiB", "max tool response size in bytes"),
-    ("QWEN_MM_STREAM_THRESHOLD", False, "Directories & limits", "1 MiB", "stream outputs larger than this many bytes"),
     # Video-memory
     ("GRAPH_MEMORY_PATH", False, "Video-memory", "", "graph_memory.json path (overrides a passed video path)"),
     ("EMBEDDINGS_PATH", False, "Video-memory", "", "embeddings.npz path"),
@@ -238,12 +236,12 @@ def _int_env(var: str, default: int) -> int:
     return default
 
 
-# Max bytes for a single tool response (image payloads are the big ones).
-MAX_RESPONSE_BYTES = _int_env("QWEN_MM_MAX_RESPONSE_BYTES", 15 * 1024 * 1024)
+# Max bytes for a single tool response (image payloads are the big ones). Internal safety cap.
+MAX_RESPONSE_BYTES = 15 * 1024 * 1024
 # Timeout (seconds) for external ffmpeg/ffprobe calls.
 FFMPEG_TIMEOUT = _int_env("QWEN_MM_FFMPEG_TIMEOUT", 120)
 # Stream a tool result to stdout in chunks above this many bytes (keeps peak memory near one frame).
-STREAM_THRESHOLD = _int_env("QWEN_MM_STREAM_THRESHOLD", 1024 * 1024)
+STREAM_THRESHOLD = 1024 * 1024
 # Hard cap on frames returned by read_video.
 MAX_TOTAL_FRAMES = _int_env("QWEN_MM_MAX_TOTAL_FRAMES", 600)
 

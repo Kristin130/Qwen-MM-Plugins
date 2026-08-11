@@ -1,7 +1,0 @@
-{
-  "name": "qwen-mm-plugins-omni-av",
-  "version": "1.0.0",
-  "description": "Qwen-MM-Plugins omni-av — Omni-model audio/video tools: segmented captioning with timestamps, ASR (plain / controllable / multi-speaker diarized), temporal grounding, and event counting, exposed as an MCP server.",
-  "skills": "./skill",
-  "mcpServers": "./.mcp.json"
-}

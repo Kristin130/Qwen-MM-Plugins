@@ -1,7 +1,8 @@
 """Hermetic unit tests for the api + search tool handlers.
 
-Understanding tools live in the qwen-mm-plugins-api capability
-(qwen_mm_plugins_api.tools: vision_chat / ocr / grounding / segmentation / asr); web +
+Understanding tools live in the qwen-mm-plugins-api capability, grouped by model family
+(qwen_mm_plugins_api.vl: vision_chat / ocr / grounding; qwen_mm_plugins_api.others: segmentation /
+asr — the Omni family in qwen_mm_plugins_api.omni is covered by test_api_omni.py); web +
 reverse-image search lives in qwen-mm-plugins-search (qwen_mm_plugins_search.tools +
 its serper client). These tools normally hit an external endpoint (DashScope
 OpenAI-compatible, Serper, a SAM3 server). The handlers all import their network boundary
@@ -29,11 +30,13 @@ import pytest
 pytest.importorskip("mcp")
 
 import shared.api_openai as oa  # noqa: E402  (import after the importorskip guard)
-from qwen_mm_plugins_api.tools import (  # noqa: E402
+from qwen_mm_plugins_api.others import (  # noqa: E402
     asr,
+    segmentation,
+)
+from qwen_mm_plugins_api.vl import (  # noqa: E402
     grounding,
     ocr,
-    segmentation,
     vision_chat,
 )
 from qwen_mm_plugins_search import serper  # noqa: E402
@@ -231,6 +234,102 @@ def test_vision_chat_dry_run_builds_request_without_network(sample_image):
     img_part = content[0]
     assert img_part["type"] == "image_url"
     assert img_part["image_url"]["url"].startswith("<base64 image")
+
+
+def test_encode_video_source_uploads_to_oss_when_configured(monkeypatch):
+    """Unified OSS trigger: a local video is uploaded and passed by URL when OSS is configured —
+    no local frame extraction (so this needs neither ffmpeg nor a real file)."""
+    from shared import oss
+
+    monkeypatch.setattr(oss, "is_upload_configured", lambda: True)
+    monkeypatch.setattr(oss, "upload_and_sign", lambda path, **kw: f"https://oss.example/{os.path.basename(path)}?sig")
+    part = oa.encode_video_source("/some/local/clip.mp4")
+    assert part == {"type": "video_url", "video_url": {"url": "https://oss.example/clip.mp4?sig"}}
+
+
+def test_encode_video_source_allow_upload_false_skips_oss(monkeypatch, sample_video):
+    """dry_run passes allow_upload=False, so even with OSS configured it must NOT upload — it falls
+    back to the local frame path."""
+    from shared import oss
+
+    monkeypatch.setattr(oss, "is_upload_configured", lambda: True)
+
+    def _boom(*a, **k):
+        raise AssertionError("upload_and_sign must not be called when allow_upload=False")
+
+    monkeypatch.setattr(oss, "upload_and_sign", _boom)
+    part = oa.encode_video_source(sample_video, allow_upload=False)
+    assert part["type"] == "video"  # frame-list form, uploaded nothing
+
+
+def test_vision_chat_dry_run_does_not_upload(monkeypatch, sample_video):
+    """A dry_run preview never hits the network, even with OSS configured; it notes the real behavior."""
+    from shared import oss
+
+    monkeypatch.setattr(oss, "is_upload_configured", lambda: True)
+    monkeypatch.setattr(oss, "upload_and_sign", lambda *a, **k: (_ for _ in ()).throw(AssertionError("uploaded")))
+    blocks = vision_chat.handle({"videos": [sample_video], "text": "hi", "dry_run": True})
+    payload = json.loads(blocks[0]["text"])
+    assert "OSS is configured" in payload.get("note", "")
+
+
+# ── Server-side video-duration cap → degrade to local frame sampling ──
+
+
+def test_vl_video_max_sec_resolves():
+    assert oa.vl_video_max_sec("qwen3.7-plus") == 2 * 3600
+    assert oa.vl_video_max_sec("qwen-vl-max-latest") == 20 * 60  # prefix match
+    assert oa.vl_video_max_sec("some-unknown-model") is None
+    assert oa.vl_video_max_sec(None) is None
+
+
+def test_omni_video_max_sec_resolves():
+    from shared import api_omni
+
+    assert api_omni.omni_video_max_sec("qwen3.5-omni-plus") == 3600
+    assert api_omni.omni_video_max_sec("qwen-omni-turbo") == 180
+    assert api_omni.omni_video_max_sec("mystery") is None
+
+
+def test_video_duration_exceeds_predicate(monkeypatch):
+    from shared import video
+
+    monkeypatch.setattr(video, "probe_media", lambda p: {"format": {"duration": "5400"}})  # 90 min
+    assert video.video_duration_exceeds("/x/clip.mp4", 3600) is True  # 90 min > 1 h
+    assert video.video_duration_exceeds("/x/clip.mp4", 7200) is False  # 90 min < 2 h
+    assert video.video_duration_exceeds("/x/clip.mp4", None) is False  # unknown cap
+    assert video.video_duration_exceeds("https://h/clip.mp4", 60) is False  # remote: can't probe
+
+
+def test_encode_video_source_over_limit_degrades_to_frames(monkeypatch, sample_video):
+    """With OSS configured, an over-limit local video is NOT uploaded — it degrades to local frames."""
+    from shared import oss, video
+
+    monkeypatch.setattr(oss, "is_upload_configured", lambda: True)
+    monkeypatch.setattr(oss, "upload_and_sign", lambda *a, **k: (_ for _ in ()).throw(AssertionError("uploaded")))
+    monkeypatch.setattr(video, "video_duration_exceeds", lambda p, cap: True)  # pretend it's over the cap
+    part = oa.encode_video_source(sample_video, model="qwen-vl-max")  # 20-min cap
+    assert part["type"] == "video"  # frame-list form, uploaded nothing
+
+
+def test_omni_over_limit_degrades_to_frames_and_audio(monkeypatch):
+    """Omni: an over-cap local video degrades UP FRONT to frames + audio (no transcode / no upload),
+    regardless of OSS. Within the cap, the normal delivery path runs."""
+    from qwen_mm_plugins_api.omni import _common
+    from shared import oss, video
+
+    monkeypatch.setattr(_common, "_frames_and_audio_parts", lambda *a, **k: [{"type": "video", "video": ["f0", "f1"]}])
+
+    # Over the cap → frames + audio, whether or not OSS is configured, without touching _preprocess_video.
+    def _boom_preprocess(*a, **k):
+        raise AssertionError("must not preprocess an over-cap video")
+
+    monkeypatch.setattr(_common, "_preprocess_video", _boom_preprocess)
+    monkeypatch.setattr(video, "video_duration_exceeds", lambda p, cap: True)
+    for configured in (True, False):
+        monkeypatch.setattr(oss, "is_upload_configured", lambda c=configured: c)
+        parts = _common._local_video_parts("/x/clip.mp4", 1.0, 200704, [], 3600, "qwen3.5-omni-plus")
+        assert parts == [{"type": "video", "video": ["f0", "f1"]}]
 
 
 # ══════════════════════════════════════════════════════════════════════

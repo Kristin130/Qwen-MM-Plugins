@@ -61,7 +61,7 @@ def _assert_reached(blocks):
 
 @requires_dashscope
 def test_vision_chat_reachable(sample_image):
-    from qwen_mm_plugins_api.tools import vision_chat
+    from qwen_mm_plugins_api.vl import vision_chat
 
     blocks = vision_chat.handle({"images": [sample_image], "text": "Reply with the single word: OK", "max_tokens": 32})
     txt = _assert_reached(blocks)
@@ -72,7 +72,7 @@ def test_vision_chat_reachable(sample_image):
 def test_ocr_reachable(tmp_path):
     from PIL import Image, ImageDraw
 
-    from qwen_mm_plugins_api.tools import ocr
+    from qwen_mm_plugins_api.vl import ocr
 
     img = Image.new("RGB", (320, 120), "white")
     ImageDraw.Draw(img).text((20, 40), "HELLO 12345", fill="black")
@@ -88,7 +88,7 @@ def test_ocr_reachable(tmp_path):
 def test_grounding_reachable(sample_image):
     import json
 
-    from qwen_mm_plugins_api.tools import grounding
+    from qwen_mm_plugins_api.vl import grounding
 
     blocks = grounding.handle({"image_path": sample_image, "prompt": "the colored regions"})
     txt = _assert_reached(blocks)
@@ -99,7 +99,7 @@ def test_grounding_reachable(sample_image):
 @requires_dashscope
 @pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg/ffprobe not available")
 def test_transcribe_audio_reachable(tmp_path):
-    from qwen_mm_plugins_api.tools import asr
+    from qwen_mm_plugins_api.others import asr
 
     wav = tmp_path / "tone.wav"
     subprocess.run(
