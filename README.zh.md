@@ -30,6 +30,7 @@
 | **blender** | Blender 三维建模：对一个**正在运行**的 Blender 写 Python（瘦客户端，22 工具）—— 建模 / 材质 / 灯光 / 渲染 | `qwen-mm-plugins-blender` | [link](cookbooks/blender/usage.md) |
 | **freecad** | FreeCAD 参数化 CAD：驱动一个**正在运行**的 FreeCAD（瘦客户端，14 工具）—— 建模、改属性、STEP/STL 导入导出、FEM 分析 | `qwen-mm-plugins-freecad` | [link](cookbooks/freecad/usage.md) |
 | **edu-agent** | 讲题视频：把一道数学 / 理科题或题目图片变成一步步讲解的中文视频 / 交互页面（**纯 skill**，无 MCP server） | `qwen-mm-plugins-edu-agent` | — |
+| **cua** | 本地桌面 computer-use：经一方 MCP proxy 调用 trycua/cua 的 Cua Driver，在后台启动、点击、输入、滚动和验证任意原生 GUI 应用（需另行安装 `cua-driver`，见[安装说明](docs/zh/installation.md)） | `qwen-mm-plugins-cua` | [link](cookbooks/cua/usage.md) |
 
 ## 🏗 架构
 
@@ -58,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install
 
 想用 harness 自己的命令，或你在 opencode / pi / QwenPaw 上（安装器不覆盖这几个）？那就自己注册 skill + MCP。
 
-**有插件市场的 harness**（Claude Code · Qoder · Codex · OpenClaw · Qwen Code）—— 加市场，再装某个能力（把 `<cap>` 换成 `core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad`）。默认先装 `core`（本地 I/O 基座,其他能力都建立在它之上）,再按需装其他:
+**有插件市场的 harness**（Claude Code · Qoder · Codex · OpenClaw · Qwen Code）—— 加市场，再装某个能力（把 `<cap>` 换成 `core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad` / `edu-agent` / `cua`）。默认先装 `core`（本地 I/O 基座，其他能力都建立在它之上），再按需装其他：
 
 ```bash
 # Claude Code
@@ -82,7 +83,7 @@ qwen extensions install https://github.com/QwenLM/Qwen-MM-Plugins.git:qwen-mm-pl
 
 ## 🔧 依赖
 
-`uvx` 首次启动时按 profile 把 Python 依赖装进隔离缓存 —— 不用手动 pip。需要你自己装的只有**系统工具**：`ffmpeg`（视频 / 音频），外加 `visualize` 可选的 `libreoffice` / `blender` / `texlive` / `chromium`。跑 `bash install.sh verify` 自检已装的能力 —— 它会确认 API key、并报告缺哪些系统工具（内部对每个能力预拉起 uvx 环境并跑 `--check-system`）。完整系统工具表、edu-agent（纯 skill）的准备、以及 blender/freecad 瘦客户端说明，见 [`docs/zh/installation.md`](docs/zh/installation.md)。
+`uvx` 首次启动时按 profile 把 Python 依赖装进隔离缓存 —— 不用手动 pip。需要你自己装的是**系统工具**：`ffmpeg`（视频 / 音频）、`visualize` 可选的 `libreoffice` / `blender` / `texlive` / `chromium`，以及 CUA proxy 所需的 `cua-driver`。跑 `bash install.sh verify` 自检已装的能力 —— 它会确认 API key、并报告缺哪些系统工具（内部对每个能力预拉起 uvx 环境并跑 `--check-system`）。完整系统工具表、edu-agent（纯 skill）的准备、CUA proxy、以及 blender/freecad 瘦客户端说明，见 [`docs/zh/installation.md`](docs/zh/installation.md)。
 
 ## 🔑 配置
 
@@ -131,6 +132,9 @@ bash install.sh configure     # 交互式：API key、端点、目录、OSS、�
 # freecad —— 在正在运行的 FreeCAD 里做参数化 CAD（瘦客户端，14 工具；STEP/STL、FEM）
                        建一颗 M6 六角螺栓、长 30 mm，导出成 STEP。
 
+# cua —— 通过一方 MCP proxy 操作本地原生 GUI 应用
+                       打开计算器并在不抢焦点的情况下算出 37 × 19。
+
 # edu-agent —— 把一道数学 / 理科题变成一步步讲解的中文视频（纯 skill）
 @geometry-problem.png  把这道题的解法讲清楚，做成带旁白的视频。
 ```
@@ -145,4 +149,4 @@ bash install.sh configure     # 交互式：API key、端点、目录、OSS、�
 
 ## 📄 License
 
-Apache-2.0 —— 见 [`LICENSE`](LICENSE)。Blender 和 FreeCAD 能力内置(vendor)了第三方 MIT 许可的代码,署名见 [`src/capabilities/blender/NOTICE.md`](src/capabilities/blender/NOTICE.md) 和 [`src/capabilities/freecad/NOTICE.md`](src/capabilities/freecad/NOTICE.md)。
+Apache-2.0 —— 见 [`LICENSE`](LICENSE)。Blender、FreeCAD 和 CUA 能力包含第三方 MIT 许可内容；署名见 [`src/capabilities/blender/NOTICE.md`](src/capabilities/blender/NOTICE.md)、[`src/capabilities/freecad/NOTICE.md`](src/capabilities/freecad/NOTICE.md) 和 [`src/capabilities/cua/NOTICE.md`](src/capabilities/cua/NOTICE.md)。

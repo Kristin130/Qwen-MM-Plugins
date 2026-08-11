@@ -21,7 +21,7 @@ Windows environment; native Windows has not yet been validated.
 
 Harnesses without a plugin marketplace register the **skill** and **MCP server** in their own config. **Qwen Code** and **Gemini CLI** are automated by the [guided installer](../../README.md#-installation) (`bash install.sh` → pick the harness); the rest (opencode, pi, QwenPaw, …) are manual — per-harness steps below. For anything else, the easiest path is to **ask the agent to do it for you** ("install `qwen-mm-plugins-<cap>`").
 
-Each capability is `qwen-mm-plugins-<cap>` with uvx extras `[<cap>]`; in every block below, replace `<cap>` with a capability name (`core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad`).
+Each capability is `qwen-mm-plugins-<cap>` with uvx extras `[<cap>]`; in every block below, replace `<cap>` with a capability name (`core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad` / `cua`).
 
 Claude Code can also install this way — the only difference from the marketplace path is the tool name: marketplace installs carry a plugin prefix + a server key (the capability's own name, e.g. `qwen-mm-plugins-<cap>`), whereas a manual `mcp add` uses the server name you choose. Taking a capability's `read_image` as an example:
 
@@ -187,25 +187,32 @@ How to see which system tools are missing:
 
 > Network boundary: `npx hyperframes init` and the TTS calls need internet; the **render itself is offline** (so fonts / KaTeX / GSAP are self-hosted into `dist/`). Full checklist: the skill's `SKILL.md` → "Prerequisites".
 
-### cua exception: passthrough to an external binary (cua-driver)
+### cua: first-party MCP proxy over the external Cua Driver
 
-`qwen-mm-plugins-cua` ships **no in-repo MCP server** and is **not** a `uvx` extra (there is no `[cua]` profile) — structurally it's like the skill-only **edu-agent** (nothing for `uvx` to build), *not* like blender/freecad, which ship their own Python MCP server. The difference from edu-agent: cua still gets an MCP server, just an **external** one. Its plugin manifest registers the **Cua Driver** binary from [trycua/cua](https://github.com/trycua/cua) (MIT) as the MCP server `cua-computer-use`, giving the agent **whole-desktop** computer-use — launch and drive **any** native GUI app in the background (not just the browser). So the "installing a plugin needs no manual step" rule does **not** apply: the `cua-driver` binary must be installed first.
+`qwen-mm-plugins-cua` ships a small in-repo stdio MCP proxy (the `[cua]` profile). Its plugin
+manifest consistently registers the server name `qwen-mm-plugins-cua` for every supported harness.
+The proxy finds the separately installed [trycua/cua](https://github.com/trycua/cua) (MIT) Cua Driver,
+launches `cua-driver mcp`, and forwards its native tool schemas and calls unchanged. This keeps the
+one-step plugin installation and a stable tool namespace without baking a host-specific driver path
+into a manifest. The external binary and its operating-system permissions still need manual setup.
 
 | Dependency | Powers | Install / check |
 |------|--------|-----------------|
-| **`cua-driver`** binary (on `PATH`) | the whole capability (the MCP server *is* `cua-driver mcp`) | `/bin/bash -c "$(curl -fsSL https://cua.ai/driver/install.sh)"` — installs to `~/.local/bin` (cross-OS, no admin). `cua-driver --version` to check. |
+| **`cua-driver`** binary | the CUA proxy's delegated implementation | `/bin/bash -c "$(curl -fsSL https://cua.ai/driver/install.sh)"` — default `~/.local/bin` (cross-OS, no admin). The proxy resolves it without requiring a GUI host to inherit shell `PATH`; check with `uvx --from "qwen-mm-plugins[cua] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main" qwen-mm-plugins-cua --check-system`. |
 | **macOS: Accessibility + Screen Recording** | driving (Accessibility) and seeing (Screen Recording) the desktop | `open -n -g -a CuaDriver --args serve` then `cua-driver permissions grant`; verify with `cua-driver permissions status`. Both are OS grants, per host app, and cannot be set programmatically. |
 | **A real display** | any window-driving tool | Local desktop (macOS first) or an isolated desktop VM (cua + Lume). On a **headless** box `cua-driver doctor` warns `DISPLAY`/`WAYLAND_DISPLAY` unset and driving fails — a headless server has no screen to drive. Linux: X11 works; Wayland is BETA. |
 
 Notes:
-- The manifest uses `command: "cua-driver"` (relative to `PATH`, where the installer puts it). For a non-standard install, override with an absolute path, or run `cua-driver mcp-config --client claude` to register it directly.
+- For a non-standard driver location, set `QWEN_MM_CUA_DRIVER_PATH=/absolute/path/to/cua-driver` in
+  `~/.qwen-mm-plugins/config` (or in the harness environment). The proxy checks that override first,
+  then `CUA_DRIVER_PATH`, the default installer location, the macOS app bundle, and `PATH`.
 - No extra API key: the driving model is whatever your agent harness already uses. `CUA_API_KEY` and Lume VMs are only for cua's cloud/sandbox targets, not this local-driver path.
 - The driver sends content-free product telemetry **by default** — `cua-driver telemetry disable` turns it off.
 - Full driver docs, permission modes (`standard` / `bounded` / `unrestricted`), and its own turnkey Claude Code skill (`cua-driver skills install`): the [cua docs](https://cua.ai/docs).
 
 ### Environment variables
 
-Config is read from the shell environment, falling back to `~/.qwen-mm-plugins/config` (KEY=VALUE lines, read when a var isn't already in the environment — so GUI-launched harnesses pick it up too). In practice only the two API keys above are commonly needed; everything else is optional. To edit that file, run the installer's **Configure** action or `<entry> --setup` — both now browse & edit the **whole** config grouped by category (credentials, dirs/limits, video-memory, OSS, Blender/FreeCAD hosts, edu-agent), not just the API key. For automation: `<entry> --set KEY=VALUE …` / `<entry> --unset KEY …`.
+Config is read from the shell environment, falling back to `~/.qwen-mm-plugins/config` (KEY=VALUE lines, read when a var isn't already in the environment — so GUI-launched harnesses pick it up too). In practice only the two API keys above are commonly needed; everything else is optional. To edit that file, run the installer's **Configure** action or `<entry> --setup` — both now browse & edit the **whole** config grouped by category (credentials, dirs/limits, video-memory, OSS, Blender/FreeCAD hosts, edu-agent, CUA), not just the API key. For automation: `<entry> --set KEY=VALUE …` / `<entry> --unset KEY …`.
 
 | Variable | Used by | Default |
 |---|---|---|
@@ -219,6 +226,7 @@ Config is read from the shell environment, falling back to `~/.qwen-mm-plugins/c
 | `QWEN_MM_CACHE` | cache dir for derived render artifacts | OS cache dir |
 | `QWEN_MM_CONFIG_DIR` | override the config dir that GUI harnesses read for keys | `~/.qwen-mm-plugins` |
 | `QWEN_MM_CONFIG` | override the full config-file path | `<config dir>/config` |
+| `QWEN_MM_CUA_DRIVER_PATH` | absolute driver path for the CUA MCP proxy | *(auto-detect)* |
 
 > **blender / freecad** are thin clients — they connect to a **running** Blender / FreeCAD carrying the bundled addon. `QWEN_MM_AUTOLAUNCH=1` (preset in the plugin manifests) brings the app up on the first tool call, auto-downloading it on Linux-x86_64 if missing. See [`cookbooks/blender`](../../cookbooks/blender/usage.md) / [`cookbooks/freecad`](../../cookbooks/freecad/usage.md) for the full setup, env vars, and troubleshooting.
 
@@ -232,7 +240,7 @@ src/
 │   ├── video-edit/          #     video editing + image/video/audio generation
 │   ├── blender/             #     Blender thin client (bundled addon: vendor/ + --launch-app)
 │   ├── freecad/             #     FreeCAD thin client (bundled addon: vendor/ + --launch-app)
-│   ├── cua/                 #     computer-use passthrough → external cua-driver (manifest + skill, no server)
+│   ├── cua/                 #     first-party stdio MCP proxy → external cua-driver + vendored skill
 │   └── example/             #     template: skill + tools
 ├── shared/                  #   shared library (reusable code: env/content/image/video/cache/syscmd/api_openai/api_dashscope …)
 └── mcp_framework.py         #   shared framework (tool auto-registration + FastMCP serve)

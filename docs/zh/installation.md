@@ -19,7 +19,7 @@ wsl --install -d Ubuntu
 
 没有插件市场的 harness 需要在各自的配置里注册 **skill** 和 **MCP server**。**Qwen Code** 和 **Gemini CLI** 已被[引导式安装器](../../README.zh.md#-安装)自动化（`bash install.sh` → 选对应 harness）；其余（opencode、pi、QwenPaw 等）为手动 —— 见下方各 harness 步骤。其它 harness 最省事的办法是**让 agent 帮你装**（「装一下 `qwen-mm-plugins-<cap>`」）。
 
-每个能力都是 `qwen-mm-plugins-<cap>`、uvx extras 为 `[<cap>]`；下面每个块里把 `<cap>` 换成具体能力名（`core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad`）。
+每个能力都是 `qwen-mm-plugins-<cap>`、uvx extras 为 `[<cap>]`；下面每个块里把 `<cap>` 换成具体能力名（`core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad` / `cua`）。
 
 Claude Code 也可以走手动安装 —— 和插件市场的区别只在工具名：插件市场装的带 plugin 前缀 + server key（就是能力自己的名字，例如 `qwen-mm-plugins-<cap>`），手动 `mcp add` 用你自定义的 server name。以某个能力的 `read_image` 为例：
 
@@ -185,25 +185,26 @@ qwenpaw skills config    # 交互勾选启用
 
 > 网络边界：`npx hyperframes init` 和 TTS 调用需联网；**渲染本身是离线的**（所以字体 / KaTeX / GSAP 要自托管进 `dist/`）。完整清单见该 skill 的 `SKILL.md` → "Prerequisites（环境准备）"。
 
-### cua 例外：passthrough 到外部二进制（cua-driver）
+### cua：外部 Cua Driver 上的一方 MCP proxy
 
-`qwen-mm-plugins-cua` **仓库内不含 MCP server**,也**不是** `uvx` extra(没有 `[cua]` profile)——结构上它和纯 skill 的 **edu-agent** 一致(没有需要 `uvx` 构建的东西),而**不是** blender/freecad 那样自带 Python MCP server。与 edu-agent 的区别:cua 仍然有一个 MCP server,只是**外部**的。插件清单把 [trycua/cua](https://github.com/trycua/cua)(MIT)的 **Cua Driver** 二进制注册为 MCP server `cua-computer-use`,给 agent **整个桌面**的 computer-use —— 后台启动并操控**任意**原生 GUI 应用(不只是浏览器)。所以「装插件无需手动步骤」对它**不适用**:必须先装好 `cua-driver` 二进制。
+`qwen-mm-plugins-cua` 带有一个仓库内的轻量 stdio MCP proxy（`[cua]` profile）。插件清单在各支持 harness 中统一注册为 `qwen-mm-plugins-cua`；proxy 负责查找并启动 [trycua/cua](https://github.com/trycua/cua)（MIT）的 Cua Driver，再原样透传其工具 schema 与调用。因此既保留一键插件安装和稳定的工具命名空间，又不会把某台机器的 driver 路径写死到 manifest。外部 `cua-driver` 二进制和操作系统权限仍需手动准备。
 
 | 依赖 | 作用 | 安装 / 检查 |
 |------|--------|-----------------|
-| **`cua-driver`** 二进制（在 `PATH` 上） | 整个能力（MCP server 就是 `cua-driver mcp`） | `/bin/bash -c "$(curl -fsSL https://cua.ai/driver/install.sh)"` —— 装到 `~/.local/bin`（跨平台、免管理员）。`cua-driver --version` 检查。 |
+| **`cua-driver`** 二进制 | CUA proxy 委托的实际实现 | `/bin/bash -c "$(curl -fsSL https://cua.ai/driver/install.sh)"` —— 默认装到 `~/.local/bin`（跨平台、免管理员）。proxy 不要求 GUI host 继承 shell `PATH`；用 `uvx --from "qwen-mm-plugins[cua] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main" qwen-mm-plugins-cua --check-system` 检查。 |
 | **macOS：辅助功能 + 屏幕录制** | 操控(辅助功能)与看屏(屏幕录制) | `open -n -g -a CuaDriver --args serve` 后 `cua-driver permissions grant`；`cua-driver permissions status` 核对。两者都是按宿主 App 记的系统授权，无法程序化设置。 |
 | **一块真实的屏** | 任何窗口驱动工具 | 本地桌面（先 macOS）或隔离桌面 VM（cua + Lume）。**无头**机器上 `cua-driver doctor` 会警告 `DISPLAY`/`WAYLAND_DISPLAY` 未设、驱动失败——无头服务器没有屏可驱动。Linux：X11 可用；Wayland 为 BETA。 |
 
 说明：
-- 清单里用的是 `command: "cua-driver"`（相对 `PATH`，安装器会放到那）。非标准安装路径请改用绝对路径,或运行 `cua-driver mcp-config --client claude` 直接注册。
+- 非标准 driver 路径请在 `~/.qwen-mm-plugins/config`（或 harness 环境）设置
+  `QWEN_MM_CUA_DRIVER_PATH=/absolute/path/to/cua-driver`。proxy 依次检查它、`CUA_DRIVER_PATH`、默认安装位置、macOS App bundle 与 `PATH`。
 - 无需额外 API Key：驱动的「大脑」就是你 agent harness 已在用的模型。`CUA_API_KEY` 和 Lume VM 只用于 cua 的云/沙箱目标，本地驱动这条路用不到。
 - 驱动**默认**发送无内容的产品遥测——`cua-driver telemetry disable` 关闭。
 - 完整驱动文档、权限模式(`standard` / `bounded` / `unrestricted`)、以及它自带的 turnkey Claude Code skill(`cua-driver skills install`)：见 [cua 文档](https://cua.ai/docs)。
 
 ### 环境变量
 
-配置从 shell 环境读取，其次回退到 `~/.qwen-mm-plugins/config`（每行一个 KEY=VALUE，仅当变量未在环境中时才读取——这样 GUI 启动的 harness 也能拿到）。实际上通常只需要上面那两个 API Key，其余都可选。要编辑该文件，运行安装器的 **Configure** 项或 `<entry> --setup`——两者现在都会按分类（凭据、目录/上限、video-memory、OSS、Blender/FreeCAD 主机、edu-agent）浏览并编辑**整份**配置，而不再只是 API Key。自动化场景用 `<entry> --set KEY=VALUE …` / `<entry> --unset KEY …`。
+配置从 shell 环境读取，其次回退到 `~/.qwen-mm-plugins/config`（每行一个 KEY=VALUE，仅当变量未在环境中时才读取——这样 GUI 启动的 harness 也能拿到）。实际上通常只需要上面那两个 API Key，其余都可选。要编辑该文件，运行安装器的 **Configure** 项或 `<entry> --setup`——两者现在都会按分类（凭据、目录/上限、video-memory、OSS、Blender/FreeCAD 主机、edu-agent、CUA）浏览并编辑**整份**配置，而不再只是 API Key。自动化场景用 `<entry> --set KEY=VALUE …` / `<entry> --unset KEY …`。
 
 | 变量 | 用于 | 默认 |
 |---|---|---|
@@ -217,6 +218,7 @@ qwenpaw skills config    # 交互勾选启用
 | `QWEN_MM_CACHE` | 渲染派生产物的缓存目录 | 系统缓存目录 |
 | `QWEN_MM_CONFIG_DIR` | 覆盖 GUI harness 读取密钥的配置目录 | `~/.qwen-mm-plugins` |
 | `QWEN_MM_CONFIG` | 覆盖配置文件的完整路径 | `<配置目录>/config` |
+| `QWEN_MM_CUA_DRIVER_PATH` | CUA MCP proxy 使用的 driver 绝对路径 | *(自动探测)* |
 
 > **blender / freecad** 是瘦客户端 —— 它们连接到一台**正在运行**、装好随包 addon 的 Blender / FreeCAD。`QWEN_MM_AUTOLAUNCH=1`（插件清单里默认预设）会在第一次工具调用时把应用拉起来，Linux-x86_64 上缺应用时自动下载。完整安装、环境变量与排障见 [`cookbooks/blender`](../../cookbooks/blender/usage.md) / [`cookbooks/freecad`](../../cookbooks/freecad/usage.md)。
 
@@ -230,7 +232,7 @@ src/
 │   ├── video-edit/          #     视频剪辑 + 图片/视频/音频生成
 │   ├── blender/             #     Blender 瘦客户端（随包 addon：vendor/ + --launch-app）
 │   ├── freecad/             #     FreeCAD 瘦客户端（随包 addon：vendor/ + --launch-app）
-│   ├── cua/                 #     computer-use passthrough → 外部 cua-driver（清单 + skill，无 server）
+│   ├── cua/                 #     一方 stdio MCP proxy → 外部 cua-driver + 内置 skill
 │   └── example/             #     模板：skill + tools
 ├── shared/                  #   共享库（env/content/image/video/cache/syscmd/api_openai/api_dashscope 等可复用代码）
 └── mcp_framework.py         #   共享框架（工具自动注册 + FastMCP serve）

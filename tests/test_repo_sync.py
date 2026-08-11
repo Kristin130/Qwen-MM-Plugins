@@ -32,6 +32,8 @@ def test_build_copies_stay_identical(fname):
 
 
 def test_all_packages_share_one_version():
+    import qwen_mm_plugins_cua
+
     import mcp_framework
     import qwen_mm_plugins_core
     import qwen_mm_plugins_video_memory
@@ -41,6 +43,9 @@ def test_all_packages_share_one_version():
     )
     assert qwen_mm_plugins_video_memory.__version__ == mcp_framework.__version__, (
         "qwen_mm_plugins_video_memory must re-export mcp_framework.__version__ (the single version source)."
+    )
+    assert qwen_mm_plugins_cua.__version__ == mcp_framework.__version__, (
+        "qwen_mm_plugins_cua must re-export mcp_framework.__version__ (the single version source)."
     )
 
 

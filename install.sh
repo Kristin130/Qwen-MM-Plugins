@@ -23,7 +23,7 @@ CONFIG_FILE="${QWEN_MM_CONFIG:-$CONFIG_DIR/config}"
 QMP_DRY=0
 
 # ── capability catalog — the ONE place capabilities are declared; every menu iterates this ──
-CAP_ITEMS=(core api search video-memory video-edit blender freecad edu-agent)
+CAP_ITEMS=(core api search video-memory video-edit blender freecad edu-agent cua)
 CAP_DESC=("read/visualize any local file — images, video, docs, 3D"
           "cloud media APIs by model family: VL (vision_chat/ocr/grounding), Omni A/V, ASR, segmentation"
           "web + reverse-image search (Serper) to confirm facts"
@@ -31,7 +31,8 @@ CAP_DESC=("read/visualize any local file — images, video, docs, 3D"
           "video-edit + image/video/audio generation"
           "drive a running Blender: 3D modeling / materials / render (thin client)"
           "drive a running FreeCAD: parametric CAD / STEP·STL / FEM (thin client)"
-          "step-by-step Chinese math/science tutorial videos (skill-only)")
+          "step-by-step Chinese math/science tutorial videos (skill-only)"
+          "drive local native GUI apps via the Cua Driver MCP proxy")
 # Skill-only capabilities have NO MCP server / pyproject extra / console entry: they install via
 # the marketplace like any plugin, but the uvx --check-system self-test doesn't apply to them.
 CAP_SKILL_ONLY=" edu-agent "
@@ -81,8 +82,9 @@ CONFIG_SPEC=(
   "FREECAD_MOD_DIR|0|hosts||FreeCAD Mod dir for the bundled addon"
   "NODE_PATH|0|edu||Node.js module resolution path"
   "PUPPETEER_EXECUTABLE_PATH|0|edu||headless Chromium executable for Puppeteer"
+  "QWEN_MM_CUA_DRIVER_PATH|0|cua||absolute path to cua-driver (overrides default locations and PATH)"
 )
-CONFIG_GROUPS=(cred dirs memory oss hosts edu)
+CONFIG_GROUPS=(cred dirs memory oss hosts edu cua)
 config_group_title() {
   case "$1" in
     cred)   printf 'Credentials & endpoints' ;;
@@ -91,6 +93,7 @@ config_group_title() {
     oss)    printf 'OSS storage (serve large media by URL)' ;;
     hosts)  printf 'Blender / FreeCAD hosts' ;;
     edu)    printf 'edu-agent (Node / headless Chromium)' ;;
+    cua)    printf 'CUA proxy' ;;
     *)      printf '%s' "$1" ;;
   esac
 }

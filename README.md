@@ -30,7 +30,7 @@ We ship [**cookbooks**](cookbooks/) of Qwen3.8-Max + these plugins in action —
 | **blender** | Blender 3D modeling: drive a **running** Blender via Python (thin client, 22 tools) — modeling / materials / lighting / rendering | `qwen-mm-plugins-blender` | [TBD](cookbooks/blender/usage.md) |
 | **freecad** | FreeCAD parametric CAD: drive a **running** FreeCAD (thin client, 14 tools) — modeling, property edits, STEP/STL import/export, FEM analysis | `qwen-mm-plugins-freecad` | [TBD](cookbooks/freecad/usage.md) |
 | **edu-agent** | Educational tutorial videos: turn a math/science problem or an image into a step-by-step Chinese explainer video / interactive page (**skill-only**, no MCP server) | `qwen-mm-plugins-edu-agent` | [TBD](cookbooks/edu-agent/usage.md) |
-| **cua** | Computer-use for the **local desktop**: drive **any** native GUI app (launch, click, type, scroll, verify — whole desktop, not just the browser) in the background, via trycua/cua's Cua Driver (**passthrough**; needs the external `cua-driver` binary — see [installation](docs/en/installation.md)) | `qwen-mm-plugins-cua` | [TBD](cookbooks/cua/usage.md) |
+| **cua** | Computer-use for the **local desktop**: drive **any** native GUI app (launch, click, type, scroll, verify — whole desktop, not just the browser) in the background, via a first-party MCP proxy over trycua/cua's Cua Driver (needs the external `cua-driver` binary — see [installation](docs/en/installation.md)) | `qwen-mm-plugins-cua` | [TBD](cookbooks/cua/usage.md) |
 
 ## 🏗 Architecture
 
@@ -60,7 +60,7 @@ environment; native Windows has not yet been validated. See the concise
 
 Prefer your harness's own commands — or you're on opencode / pi / QwenPaw, which the installer doesn't cover? Register the skill + MCP yourself.
 
-**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw · Qwen Code) — add the marketplace, then install a capability (replace `<cap>` with `core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad`). Install `core` by default — it's the local-I/O base every other capability builds on — plus whichever others you need:
+**Plugin-marketplace harnesses** (Claude Code · Qoder · Codex · OpenClaw · Qwen Code) — add the marketplace, then install a capability (replace `<cap>` with `core` / `api` / `search` / `video-memory` / `video-edit` / `blender` / `freecad` / `edu-agent` / `cua`). Install `core` by default — it's the local-I/O base every other capability builds on — plus whichever others you need:
 
 ```bash
 # Claude Code
@@ -84,7 +84,7 @@ qwen extensions install https://github.com/QwenLM/Qwen-MM-Plugins.git:qwen-mm-pl
 
 ## 🔧 Dependencies
 
-`uvx` installs the Python dependencies for the chosen profile on first launch — no manual pip. The only things you install yourself are **system tools**: `ffmpeg` (video / audio), plus optional `libreoffice` / `blender` / `texlive` / `chromium` for `visualize`. Run `bash install.sh verify` to self-test what's installed — it confirms your API key and reports any missing system tools (fetching each capability's env and running `--check-system` under the hood). Full system-tool table, the edu-agent (skill-only) setup, and the blender/freecad thin-client notes: see [`docs/en/installation.md`](docs/en/installation.md).
+`uvx` installs the Python dependencies for the chosen profile on first launch — no manual pip. The things you install yourself are **system tools**: `ffmpeg` (video / audio), optional `libreoffice` / `blender` / `texlive` / `chromium` for `visualize`, and `cua-driver` for the CUA proxy. Run `bash install.sh verify` to self-test what's installed — it confirms your API key and reports any missing system tools (fetching each capability's env and running `--check-system` under the hood). Full system-tool table, the edu-agent (skill-only) setup, the CUA proxy, and the blender/freecad thin-client notes: see [`docs/en/installation.md`](docs/en/installation.md).
 
 ## 🔑 Configuration
 
@@ -132,6 +132,9 @@ Once a capability is installed, reference a file in your harness and just ask �
 
 # freecad — parametric CAD in a running FreeCAD (thin client, 14 tools; STEP/STL, FEM)
                        Model an M6 hex bolt 30 mm long and export it as STEP.
+
+# cua — drive a local native GUI app through the first-party MCP proxy
+                       Open Calculator and compute 37 × 19 without stealing focus.
 
 # edu-agent — turn a math/science problem into a step-by-step Chinese explainer video (skill-only)
 @geometry-problem.png  Explain how to solve this as a narrated video.
