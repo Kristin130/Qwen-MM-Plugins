@@ -10,7 +10,7 @@ version when practical.
 
 Please do not open a public issue for a suspected vulnerability.
 
-Use [GitHub private vulnerability reporting](https://github.com/changliu-ncepu/Qwen-MM-Plugins/security/advisories/new)
+Use [GitHub private vulnerability reporting](https://github.com/Kristin130/Qwen-MM-Plugins/security/advisories/new)
 to send the maintainers:
 
 - the affected version or commit;

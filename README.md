@@ -89,7 +89,7 @@ A capability = a **skill** (so the model knows the tools exist) + an optional **
 One script handles **install · configure · verify · uninstall** across every harness it supports (Claude Code · Codex · Qoder · OpenClaw · Qwen Code · Gemini CLI). It drives each harness's own native install under the hood — nothing reinvented — and writes a single shared config file (`~/.qwen-mm-plugins/config`) that GUI and terminal harnesses both read, so you set things up once:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/changliu-ncepu/Qwen-MM-Plugins/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Kristin130/Qwen-MM-Plugins/main/install.sh | bash
 ```
 
 Or run one action at a time — `bash install.sh install` / `configure` / `verify` / `uninstall` (what `configure` and `verify` do is detailed under [Configuration](#-configuration) and [Dependencies](#-dependencies)).
@@ -108,18 +108,18 @@ Prefer your harness's own commands — or you're on opencode / pi / QwenPaw, whi
 
 ```bash
 # Claude Code
-claude   plugin  marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
+claude   plugin  marketplace add https://github.com/Kristin130/Qwen-MM-Plugins.git
 claude   plugin  install       qwen-mm-plugins-<cap>@qwen-mm-plugins
 # Qoder
-qodercli plugins marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
+qodercli plugins marketplace add https://github.com/Kristin130/Qwen-MM-Plugins.git
 qodercli plugins install       qwen-mm-plugins-<cap>@qwen-mm-plugins
 # Codex
-codex    plugin  marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
+codex    plugin  marketplace add https://github.com/Kristin130/Qwen-MM-Plugins.git
 codex    plugin  add           qwen-mm-plugins-<cap>@qwen-mm-plugins
 # OpenClaw
-openclaw plugins install       qwen-mm-plugins-<cap> --marketplace https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
+openclaw plugins install       qwen-mm-plugins-<cap> --marketplace https://github.com/Kristin130/Qwen-MM-Plugins.git
 # Qwen Code
-qwen extensions install https://github.com/changliu-ncepu/Qwen-MM-Plugins.git:qwen-mm-plugins-<cap> --consent
+qwen extensions install https://github.com/Kristin130/Qwen-MM-Plugins.git:qwen-mm-plugins-<cap> --consent
 ```
 
 `marketplace add` also accepts a local repo path; re-running is safe. On **codex**, `marketplace add` does **not** refresh an already-added marketplace, so run `codex plugin marketplace upgrade qwen-mm-plugins` before `plugin add` to pick up newly-published capabilities.

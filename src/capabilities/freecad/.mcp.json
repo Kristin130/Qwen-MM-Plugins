@@ -4,7 +4,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "qwen-mm-plugins[freecad] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main",
+        "qwen-mm-plugins[freecad] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main",
         "qwen-mm-plugins-freecad"
       ],
       "env": {"QWEN_MM_AUTOLAUNCH": "1"}

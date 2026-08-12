@@ -2,7 +2,7 @@
 #
 # Qwen-MM-Plugins — interactive installer & setup.
 #
-#   curl -fsSL https://raw.githubusercontent.com/changliu-ncepu/Qwen-MM-Plugins/main/install.sh | bash   # guided menu
+#   curl -fsSL https://raw.githubusercontent.com/Kristin130/Qwen-MM-Plugins/main/install.sh | bash   # guided menu
 #   bash install.sh [install|configure|verify|uninstall]        # single interactive action
 #   bash install.sh --verify [caps]   # non-interactive: check system deps of installed (or listed) caps
 #
@@ -15,7 +15,7 @@
 
 set -uo pipefail
 
-REPO_URL="${QMP_REPO:-https://github.com/changliu-ncepu/Qwen-MM-Plugins.git}"
+REPO_URL="${QMP_REPO:-https://github.com/Kristin130/Qwen-MM-Plugins.git}"
 REPO_REF="${QMP_REF:-main}"
 MARKETPLACE="qwen-mm-plugins"
 CONFIG_DIR="${QWEN_MM_CONFIG_DIR:-$HOME/.qwen-mm-plugins}"
@@ -117,7 +117,7 @@ if [ "$NONINTERACTIVE" = 1 ]; then
   exec 3</dev/null                                   # headless: no prompts, no terminal required
 elif ! { exec 3</dev/tty; } 2>/dev/null; then
   printf 'This installer is interactive — run it in a terminal (or use --verify headless):\n' >&2
-  printf '  curl -fsSLO https://raw.githubusercontent.com/changliu-ncepu/Qwen-MM-Plugins/main/install.sh && bash install.sh\n' >&2
+  printf '  curl -fsSLO https://raw.githubusercontent.com/Kristin130/Qwen-MM-Plugins/main/install.sh && bash install.sh\n' >&2
   exit 1
 fi
 

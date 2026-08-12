@@ -23,7 +23,7 @@ manually.
 ## Install
 
 ```bash
-claude plugin marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
+claude plugin marketplace add https://github.com/Kristin130/Qwen-MM-Plugins.git
 claude plugin install qwen-mm-plugins-core@qwen-mm-plugins
 claude plugin install qwen-mm-plugins-edu-agent@qwen-mm-plugins
 ```

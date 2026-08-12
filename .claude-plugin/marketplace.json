@@ -1,6 +1,6 @@
 {
   "name": "qwen-mm-plugins",
-  "owner": { "name": "changliu-ncepu", "url": "https://github.com/changliu-ncepu/Qwen-MM-Plugins" },
+  "owner": { "name": "Kristin130", "url": "https://github.com/Kristin130/Qwen-MM-Plugins" },
   "metadata": { "description": "Qwen multimodal understanding plugins — Agent Skills + MCP servers", "version": "1.0.0" },
   "plugins": [
     {

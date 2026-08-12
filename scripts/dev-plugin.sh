@@ -31,7 +31,7 @@ REPO="$repo" python3 - "${files[@]}" <<'PY'
 import json, os, sys
 
 repo = os.environ["REPO"]
-git_ref = "git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main"
+git_ref = "git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main"
 local = f"file://{repo}"
 for path in sys.argv[1:]:
     data = json.load(open(path))

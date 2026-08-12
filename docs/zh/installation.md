@@ -33,7 +33,7 @@ Claude Code 也可以走手动安装 —— 和插件市场的区别只在工具
 ln -s "$(pwd)/src/capabilities/<cap>/skill" ~/.claude/skills/qwen-mm-plugins-<cap>
 # 2) MCP（本地代码把 --from 换成 "$(pwd)[<cap>]"）
 claude mcp add qwen-mm-plugins-<cap> -- \
-  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
+  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
 ```
 
 换能力时，把 skill 路径、`[<cap>]` profile、入口名 `qwen-mm-plugins-<cap>` 一起换成对应能力的。
@@ -48,7 +48,7 @@ claude mcp add qwen-mm-plugins-<cap> -- \
   "mcp": {
     "qwen-mm-plugins-<cap>": {
       "type": "local",
-      "command": ["uvx", "--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"],
+      "command": ["uvx", "--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"],
       "environment": { "DASHSCOPE_API_KEY": "{env:DASHSCOPE_API_KEY}" },
       "enabled": true
     }
@@ -67,14 +67,14 @@ cp -r src/capabilities/<cap>/skill ~/.config/opencode/skills/qwen-mm-plugins-<ca
 `npm i -g @qwen-code/qwen-code@latest`。把一个能力作为**原生 extension** 安装（打包 skill + MCP + context），一条命令、走 git 从 Claude 市场拉：
 
 ```bash
-qwen extensions install https://github.com/changliu-ncepu/Qwen-MM-Plugins.git:qwen-mm-plugins-<cap> --consent
+qwen extensions install https://github.com/Kristin130/Qwen-MM-Plugins.git:qwen-mm-plugins-<cap> --consent
 ```
 
 或只注册 MCP server（再把 skill 拷进 `~/.qwen/skills/qwen-mm-plugins-<cap>`）：
 
 ```bash
 qwen mcp add qwen-mm-plugins-<cap> --scope user --trust --timeout 600000 \
-  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
+  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
 ```
 
 无头运行：`qwen -p "…" --yolo -o text`。卸载：`qwen extensions uninstall qwen-mm-plugins-<cap>`。
@@ -85,8 +85,8 @@ qwen mcp add qwen-mm-plugins-<cap> --scope user --trust --timeout 600000 \
 
 ```bash
 gemini mcp add -s user qwen-mm-plugins-<cap> \
-  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
-gemini skills install https://github.com/changliu-ncepu/Qwen-MM-Plugins.git --path src/capabilities/<cap>/skill --consent
+  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
+gemini skills install https://github.com/Kristin130/Qwen-MM-Plugins.git --path src/capabilities/<cap>/skill --consent
 ```
 
 本地 checkout 时，`gemini extensions link src/capabilities/<cap>` 可同时打包两者。MCP 只在**受信任目录**下加载（提示时信任该目录即可）。无头运行：`gemini -p "…" -y`。卸载：`gemini mcp remove -s user qwen-mm-plugins-<cap>` + `gemini skills uninstall qwen-mm-plugins-<cap>`。
@@ -109,7 +109,7 @@ pi install npm:pi-mcp-adapter                                               # �
   "settings": { "toolPrefix": "none" },
   "mcpServers": { "qwen-mm-plugins-<cap>": {
     "command": "uvx",
-    "args": ["--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"],
+    "args": ["--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"],
     "env": { "DASHSCOPE_API_KEY": "${DASHSCOPE_API_KEY}" },
     "directTools": ["read_image", "ocr", "visualize"]
   } }
@@ -139,7 +139,7 @@ qwenpaw skills config    # 交互勾选启用
         "enabled": true,
         "transport": "stdio",
         "command": "uvx",
-        "args": ["--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"]
+        "args": ["--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"]
       }
     }
   }
@@ -166,7 +166,7 @@ qwenpaw skills config    # 交互勾选启用
 
 如何查看缺少的系统工具：
 
-- 用 uvx 查看：`uvx --from "qwen-mm-plugins[all] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap> --check-system`。
+- 用 uvx 查看：`uvx --from "qwen-mm-plugins[all] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap> --check-system`。
 - server 启动时，若某个已装 extra 缺对应系统工具，会在 stderr 打印一行告警。
 - 实际工具调用时，返回「请安装 X」的文字提示，其它工具照常用。
 
