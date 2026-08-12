@@ -6,6 +6,7 @@ Native multimodal plugins for Qwen models. Make any agent harness multimodal-nat
 
 ## Contents
 
+- [✨ What's New in This Fork](#-whats-new-in-this-fork)
 - [🧩 Capabilities](#-capabilities)
 - [🏗 Architecture](#-architecture)
 - [📦 Installation](#-installation)
@@ -13,6 +14,50 @@ Native multimodal plugins for Qwen models. Make any agent harness multimodal-nat
 - [🔑 Configuration](#-configuration)
 - [🚀 Quick Start](#-quick-start)
 - [🧪 Development](#-development)
+
+## ✨ What's New in This Fork
+
+This fork builds on upstream `QwenLM/Qwen-MM-Plugins` with the following optimizations and improvements:
+
+### 🔄 Multi-Provider Failover for Cloud APIs
+
+The `api` capability (`vision_chat` / `ocr` / `grounding` / the Omni family) previously only spoke to a single DashScope endpoint. Now it supports a **failover pool of OpenAI-compatible providers** — when the primary endpoint is rate-limited, down, or out of credit, it automatically retries then falls back to backup providers in order:
+
+```bash
+# Primary (DashScope or any OpenAI-compatible endpoint)
+DASHSCOPE_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/   # e.g. Google Gemini
+DASHSCOPE_API_KEY=…
+DASHSCOPE_MODEL=gemini-3.5-flash-lite        # optional: pin the primary's model
+
+# Backup providers — lower number = higher priority
+QWEN_MM_PROVIDER1_BASE_URL=https://api.siliconflow.cn/v1
+QWEN_MM_PROVIDER1_API_KEY=…
+QWEN_MM_PROVIDER1_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+
+QWEN_MM_PROVIDER2_BASE_URL=…                 # and so on, numbering contiguous from 1
+QWEN_MM_PROVIDER2_API_KEY=…
+QWEN_MM_PROVIDER2_MODEL=…
+```
+
+- **Retries & fallback**: a provider gets 3 retries (429 / 5xx / timeouts) before the next one is tried.
+- **Per-provider model pinning**: each provider can pin its own model via `QWEN_MM_PROVIDER<n>_MODEL` (or `DASHSCOPE_MODEL` for the primary).
+- **Foreign-model aware**: generic caption/OCR (`vision_chat` / `ocr`) accept any compatible model — e.g. run the cheap **Google Gemini** by default and only fall back to Qwen; perception tasks that need Qwen's structured output (`grounding`, Omni) automatically skip non-Qwen models and use a Qwen-capable provider.
+- **Cost control**: put a cheap/free endpoint first, a Qwen endpoint second — quota exhausted? It just works.
+
+### 🖼️ SiliconFlow Compatibility
+
+- `grounding` no longer sends DashScope-only `enable_thinking` to endpoints that reject it (SiliconFlow returns 400) — the flag is now sent only to the official DashScope base URL.
+- OpenAI-spec servers (e.g. vLLM) can opt into raw-base64 `input_audio` via `QWEN_MM_AUDIO_RAW_B64` (previously only DashScope's `data:;base64,…` form worked).
+
+### 📦 New Files
+
+- `scripts/config_env.sh` — interactive env/config editor for the failover pool (keeps provider numbering contiguous).
+- `docs/en/multi_provider.md`, `docs/zh/multi_provider.md` — full multi-provider configuration guide.
+- `uv.lock` — dependency lockfile for reproducible installs.
+
+### 🧭 Full configuration reference
+
+See [`docs/en/multi_provider.md`](docs/en/multi_provider.md) for the complete guide (priority order, examples, per-harness setup).
 
 ## 🧩 Capabilities
 
@@ -23,7 +68,7 @@ We ship [**cookbooks**](cookbooks/) of Qwen3.8-Max + these plugins in action —
 | Capability | What it does | Install name | Cookbook |
 |---|---|---|---|
 | **core** | Local I/O plugin: read images and video in dynamic resolution, and visualize any file (e.g. docs, 3D, and more) — plus some image tools (crop, annotate, extract frames) | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
-| **api** | Cloud APIs for understanding media, by model family: VL (vision chat, OCR, grounding), Omni A/V (timestamped captioning, ASR / multi-speaker diarization, temporal grounding, event counting), plus ASR and segmentation (SAM3); currently supports DashScope | `qwen-mm-plugins-api` | [link](cookbooks/api/usage.md) |
+| **api** | Cloud APIs for understanding media, by model family: VL (vision chat, OCR, grounding), Omni A/V (timestamped captioning, ASR / multi-speaker diarization, temporal grounding, event counting), plus ASR and segmentation (SAM3). **Now with multi-provider failover** — any OpenAI-compatible endpoint (DashScope, Google Gemini, SiliconFlow, …) with automatic fallback | `qwen-mm-plugins-api` | [link](cookbooks/api/usage.md) |
 | **search** | Web + reverse-image search to confirm facts: web search, page extraction, reverse image search; currently supports Serper | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
 | **video-memory** | Long-video memory: a hierarchical graph memory that powers QA over very long videos | `qwen-mm-plugins-video-memory` | [TBD](cookbooks/video-memory/usage.md) |
 | **video-edit** | Video editing + generation: editing workflows + image / video / audio generation | `qwen-mm-plugins-video-edit` | [TBD](cookbooks/video-edit/usage.md) |

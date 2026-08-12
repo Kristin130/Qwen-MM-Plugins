@@ -6,6 +6,7 @@
 
 ## 目录
 
+- [✨ 本版更新](#-本版更新)
 - [🧩 能力](#-能力)
 - [🏗 架构](#-架构)
 - [📦 安装](#-安装)
@@ -13,6 +14,50 @@
 - [🔑 配置](#-配置)
 - [🚀 快速开始](#-快速开始)
 - [🧪 开发](#-开发)
+
+## ✨ 本版更新
+
+本 fork 基于上游 `QwenLM/Qwen-MM-Plugins`，做了以下优化与修改：
+
+### 🔄 云端 API 多 Provider 自动回退
+
+`api` 能力（`vision_chat` / `ocr` / `grounding` / Omni 系）原来只连一个 DashScope 端点。现在支持**多个 OpenAI 兼容 Provider 的失败回退池** —— 主端点限流、宕机或欠费时自动重试并依次切换到备用 Provider：
+
+```bash
+# 主端点（DashScope 或任意 OpenAI 兼容端点）
+DASHSCOPE_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/   # 例如 Google Gemini
+DASHSCOPE_API_KEY=…
+DASHSCOPE_MODEL=gemini-3.5-flash-lite        # 可选：固定主端点的模型
+
+# 备用 Provider —— 数字越小优先级越高
+QWEN_MM_PROVIDER1_BASE_URL=https://api.siliconflow.cn/v1
+QWEN_MM_PROVIDER1_API_KEY=…
+QWEN_MM_PROVIDER1_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+
+QWEN_MM_PROVIDER2_BASE_URL=…                 # 以此类推，编号从 1 连续
+QWEN_MM_PROVIDER2_API_KEY=…
+QWEN_MM_PROVIDER2_MODEL=…
+```
+
+- **重试与回退**：每个 Provider 失败重试 3 次（429 / 5xx / 超时）后才切下一个。
+- **按 Provider 固定模型**：每个 Provider 可用 `QWEN_MM_PROVIDER<n>_MODEL` 固定自己的模型（主端点用 `DASHSCOPE_MODEL`）。
+- **外来模型感知**：通用看图 / OCR（`vision_chat` / `ocr`）可用任意兼容模型 —— 比如默认用便宜的 **Google Gemini**，只有回退时才用 Qwen；而需要 Qwen 结构化输出的感知任务（`grounding`、Omni）会自动跳过非 Qwen 模型、直接使用支持 Qwen 的 Provider。
+- **省钱**：把便宜的/免费的端点放第一位，Qwen 端点放第二位 —— 额度用完？自动切换，服务不中断。
+
+### 🖼️ SiliconFlow 兼容
+
+- `grounding` 不再向拒绝该参数的端点（SiliconFlow 会返回 400）发送 DashScope 专属的 `enable_thinking` —— 该参数现在只发给 DashScope 官方 base URL。
+- 面向 OpenAI 规范的服务器（如 vLLM）可通过 `QWEN_MM_AUDIO_RAW_B64` 选择原始 base64 的 `input_audio`（原来只有 DashScope 的 `data:;base64,…` 形式可用）。
+
+### 📦 新增文件
+
+- `scripts/config_env.sh` —— 回退池的交互式环境/配置编辑器（保持 Provider 编号连续）。
+- `docs/en/multi_provider.md`、`docs/zh/multi_provider.md` —— 多 Provider 完整配置指南。
+- `uv.lock` —— 依赖锁定文件，保证可复现安装。
+
+### 🧭 完整配置参考
+
+见 [`docs/zh/multi_provider.md`](docs/zh/multi_provider.md)（优先级、示例、各 harness 配置）。
 
 ## 🧩 能力
 
@@ -23,7 +68,7 @@
 | 能力 | 做什么 | 安装名 | Cookbook |
 |---|---|---|---|
 | **core** | 本地 I/O 插件：动态分辨率读取图片与视频，可视化任意文件(如文档、3D 等)——外加一些图像工具(裁剪 / 标注 / 抽帧) | `qwen-mm-plugins-core` | [link](cookbooks/core/usage.md) |
-| **api** | 云端 API 理解媒体，按模型族划分:VL(视觉对话、OCR、grounding)、Omni 音视频(带时间戳或说话人标签的 ASR / 多说话人分离、分段描述、时序定位、事件计数),外加 ASR 与分割(SAM3);目前支持 DashScope | `qwen-mm-plugins-api` | [link](cookbooks/api/usage.md) |
+| **api** | 云端 API 理解媒体，按模型族划分:VL(视觉对话、OCR、grounding)、Omni 音视频(带时间戳或说话人标签的 ASR / 多说话人分离、分段描述、时序定位、事件计数),外加 ASR 与分割(SAM3)。**已支持多 Provider 自动回退** —— 任意 OpenAI 兼容端点(DashScope、Google Gemini、SiliconFlow…)均可配置,失败自动切换 | `qwen-mm-plugins-api` | [link](cookbooks/api/usage.md) |
 | **search** | 联网 + 反查图搜索用于事实核验:网页搜索、网页抽取、反查图;目前支持 Serper | `qwen-mm-plugins-search` | [TBD](cookbooks/core/usage.md) |
 | **video-memory** | 长视频记忆：层次化图记忆，支撑超长视频问答 | `qwen-mm-plugins-video-memory` | [link](cookbooks/video-memory/usage.md) |
 | **video-edit** | 视频剪辑 + 生成：剪辑工作流 + 图片 / 视频 / 音频生成 | `qwen-mm-plugins-video-edit` | — |
