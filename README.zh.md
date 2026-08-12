@@ -12,6 +12,7 @@
 - [📦 安装](#-安装)
 - [🔧 依赖](#-依赖)
 - [🔑 配置](#-配置)
+- [🚀 开始使用（安装 → 配置 → 验证）](#-开始使用安装--配置--验证)
 - [🚀 快速开始](#-快速开始)
 - [🧪 开发](#-开发)
 
@@ -24,29 +25,31 @@
 `api` 能力（`vision_chat` / `ocr` / `grounding` / Omni 系）原来只连一个 DashScope 端点。现在支持**多个 OpenAI 兼容 Provider 的失败回退池** —— 主端点限流、宕机或欠费时自动重试并依次切换到备用 Provider：
 
 ```bash
-# 主端点（DashScope 或任意 OpenAI 兼容端点）
-DASHSCOPE_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/   # 例如 Google Gemini
-DASHSCOPE_API_KEY=…
-DASHSCOPE_MODEL=gemini-3.5-flash-lite        # 可选：固定主端点的模型
+# 统一编号的 Provider 池 —— provider 1 是主端点。
+# (旧的 DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY / DASHSCOPE_MODEL 仍作为 provider 1 的别名兼容,
+#  但规范配置是下面的编号池)
 
-# 备用 Provider —— 数字越小优先级越高
-QWEN_MM_PROVIDER1_BASE_URL=https://api.siliconflow.cn/v1
+QWEN_MM_PROVIDER1_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/   # 例如 Google Gemini
 QWEN_MM_PROVIDER1_API_KEY=…
-QWEN_MM_PROVIDER1_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+QWEN_MM_PROVIDER1_MODEL=gemini-3.5-flash-lite        # 可选：固定 provider 1 的模型
 
-QWEN_MM_PROVIDER2_BASE_URL=…                 # 以此类推，编号从 1 连续
+QWEN_MM_PROVIDER2_BASE_URL=https://api.siliconflow.cn/v1
 QWEN_MM_PROVIDER2_API_KEY=…
-QWEN_MM_PROVIDER2_MODEL=…
+QWEN_MM_PROVIDER2_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+
+QWEN_MM_PROVIDER3_BASE_URL=…                 # 以此类推，编号从 1 连续
+QWEN_MM_PROVIDER3_API_KEY=…
+QWEN_MM_PROVIDER3_MODEL=…
 ```
 
 - **重试与回退**：每个 Provider 失败重试 3 次（429 / 5xx / 超时）后才切下一个。
-- **按 Provider 固定模型**：每个 Provider 可用 `QWEN_MM_PROVIDER<n>_MODEL` 固定自己的模型（主端点用 `DASHSCOPE_MODEL`）。
-- **外来模型感知**：通用看图 / OCR（`vision_chat` / `ocr`）可用任意兼容模型 —— 比如默认用便宜的 **Google Gemini**，只有回退时才用 Qwen；而需要 Qwen 结构化输出的感知任务（`grounding`、Omni）会自动跳过非 Qwen 模型、直接使用支持 Qwen 的 Provider。
+- **按 Provider 固定模型**：每个 Provider 用 `QWEN_MM_PROVIDER<n>_MODEL` 固定自己的模型。
+- **外来模型感知**：通用看图 / OCR（`vision_chat` / `ocr`）可用任意兼容模型 —— 比如 provider 1 用便宜的 **Google Gemini**，只有回退时才用 Qwen；而需要 Qwen 结构化输出的感知任务（`grounding`、Omni）会自动跳过非 Qwen 模型、直接使用支持 Qwen 的 Provider。
 - **省钱**：把便宜的/免费的端点放第一位，Qwen 端点放第二位 —— 额度用完？自动切换，服务不中断。
 
 ### 🖼️ SiliconFlow 兼容
 
-- `grounding` 不再向拒绝该参数的端点（SiliconFlow 会返回 400）发送 DashScope 专属的 `enable_thinking` —— 该参数现在只发给 DashScope 官方 base URL。
+- `grounding` 会根据**实际服务请求的模型**按 Provider 选择正确的思考控制参数：DashScope → `enable_thinking`（hybrid 模型）、SiliconFlow → `thinking_budget`（thinking-only 模型支持，1 token ≈ 不思考）、外来模型（Gemini / GPT-4o 等）→ 不传（它们拒绝未知字段）。
 - 面向 OpenAI 规范的服务器（如 vLLM）可通过 `QWEN_MM_AUDIO_RAW_B64` 选择原始 base64 的 `input_audio`（原来只有 DashScope 的 `data:;base64,…` 形式可用）。
 
 ### 📦 新增文件
@@ -133,16 +136,92 @@ qwen extensions install https://github.com/Kristin130/Qwen-MM-Plugins.git:qwen-m
 
 API 类工具需要 key —— 原生读图 / 视频 / 文档不需要：
 
-- `DASHSCOPE_API_KEY` —— `vision_chat` / `ocr` / `grounding` / `transcribe_audio` / Omni 音视频理解 / 生成类 / video-memory 构建
+- `QWEN_MM_PROVIDER<n>_API_KEY` —— `api` 能力（`vision_chat` / `ocr` / `grounding` / `transcribe_audio` / Omni 音视频理解）。provider 1 是主端点，provider 2+ 是自动回退的备用（任意 OpenAI 兼容端点：DashScope、Google Gemini、SiliconFlow、vLLM …）。旧的 `DASHSCOPE_API_KEY` 三件套仍作为 provider 1 的别名兼容。
 - `SERPER_API_KEY` —— `web_search` / `web_extractor` / `image_search`
+- `DASHSCOPE_API_KEY` —— 生成类（`qwen_image` / `wan_*` / TTS）与 video-memory 构建（这些走 DashScope 原生 REST，不走 provider 池）
 
-在 shell 里 export，或写进 `~/.qwen-mm-plugins/config`（仅当变量未在环境中时才读取 —— 这样 GUI 启动的 harness 也能拿到）。引导式安装器的 Configure 步骤会帮你写这个文件：
+### 🛠 配置脚本
+
+仓库自带 `scripts/config_env.sh` —— provider 池与环境 key 的交互式编辑器（写入 `~/.qwen-mm-plugins/config`，保持 provider 编号连续）：
+
+```bash
+# 交互菜单：添加 / 列表 / 删除 provider、设置 API key
+bash scripts/config_env.sh
+
+# 打印当前生效的配置
+bash scripts/config_env.sh --list
+
+# 删除某个 key（例如某个 provider）
+bash scripts/config_env.sh --unset QWEN_MM_PROVIDER2_BASE_URL
+```
+
+它管理 `QWEN_MM_PROVIDER<n>_BASE_URL` / `_API_KEY` / `_MODEL`（回退池），以及 `SERPER_API_KEY` 和旧的 `DASHSCOPE_*` 三件套。shell 里 export 的变量运行时优先；配置文件是兜底（这样 GUI 启动的 harness 也能拿到 key）。
+
+### 或者手动配置
+
+```bash
+# Provider 池（示例：Google Gemini 主端点 + SiliconFlow Qwen 备用）
+export QWEN_MM_PROVIDER1_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+export QWEN_MM_PROVIDER1_API_KEY=…
+export QWEN_MM_PROVIDER1_MODEL=gemini-3.5-flash-lite
+export QWEN_MM_PROVIDER2_BASE_URL=https://api.siliconflow.cn/v1
+export QWEN_MM_PROVIDER2_API_KEY=…
+export QWEN_MM_PROVIDER2_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+
+# 网页搜索
+export SERPER_API_KEY=…
+```
+
+引导式安装器的 Configure 步骤也会帮你写这个文件：
 
 ```bash
 bash install.sh configure     # 交互式：API key、端点、目录、OSS、主机地址 —— 整份分组配置
 ```
 
-非交互 / 自动化配置与完整环境变量表见 [`docs/zh/installation.md`](docs/zh/installation.md)。
+非交互 / 自动化配置与完整环境变量表见 [`docs/zh/installation.md`](docs/zh/installation.md) 和 [`docs/zh/multi_provider.md`](docs/zh/multi_provider.md)。
+
+## 🚀 开始使用（安装 → 配置 → 验证）
+
+**1. 安装**某个能力（本 fork）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kristin130/Qwen-MM-Plugins/main/install.sh | bash
+# 或只装 api 能力：bash install.sh install api
+```
+
+**2. 配置你的 Provider** —— provider 1 是主端点，provider 2+ 是自动回退的备用：
+
+```bash
+# 交互式编辑器（推荐）
+bash scripts/config_env.sh
+#   → 选 5：添加 provider（base_url / api_key / model）
+#   → provider 1 = 主端点，provider 2 = 第一个备用，……
+
+# 或直接 export
+bash scripts/config_env.sh --list   # 查看当前配置
+```
+
+推荐的入门配置：**provider 1 用 Google Gemini**（便宜/免费的视觉），**provider 2 用 SiliconFlow Qwen**（Qwen 原生 grounding 和 Omni）：
+
+```bash
+export QWEN_MM_PROVIDER1_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+export QWEN_MM_PROVIDER1_API_KEY=…
+export QWEN_MM_PROVIDER1_MODEL=gemini-3.5-flash-lite
+export QWEN_MM_PROVIDER2_BASE_URL=https://api.siliconflow.cn/v1
+export QWEN_MM_PROVIDER2_API_KEY=…
+export QWEN_MM_PROVIDER2_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+```
+
+> `vision_chat` / `ocr` 走 provider 1（任意 OpenAI 兼容模型）；`grounding` / Omni 需要 Qwen 的结构化输出，会自动跳过非 Qwen 的 provider、用第一个支持 Qwen 的。当 provider 1 限流 / 宕机 / 欠费时，池子会自动回退到下一个 provider。
+
+**3. 验证**服务器能启动、key 能解析：
+
+```bash
+bash install.sh verify
+# 或单独验证：uvx --from "qwen-mm-plugins[api] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main" qwen-mm-plugins-api --check-system
+```
+
+**4. 使用** —— 在 harness 里引用文件直接提问（示例见下）。
 
 ## 🚀 快速开始
 

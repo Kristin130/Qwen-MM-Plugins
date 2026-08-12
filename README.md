@@ -12,6 +12,7 @@ Native multimodal plugins for Qwen models. Make any agent harness multimodal-nat
 - [📦 Installation](#-installation)
 - [🔧 Dependencies](#-dependencies)
 - [🔑 Configuration](#-configuration)
+- [🚀 Getting Started (install → configure → verify)](#-getting-started-install--configure--verify)
 - [🚀 Quick Start](#-quick-start)
 - [🧪 Development](#-development)
 
@@ -24,29 +25,31 @@ This fork builds on upstream `QwenLM/Qwen-MM-Plugins` with the following optimiz
 The `api` capability (`vision_chat` / `ocr` / `grounding` / the Omni family) previously only spoke to a single DashScope endpoint. Now it supports a **failover pool of OpenAI-compatible providers** — when the primary endpoint is rate-limited, down, or out of credit, it automatically retries then falls back to backup providers in order:
 
 ```bash
-# Primary (DashScope or any OpenAI-compatible endpoint)
-DASHSCOPE_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/   # e.g. Google Gemini
-DASHSCOPE_API_KEY=…
-DASHSCOPE_MODEL=gemini-3.5-flash-lite        # optional: pin the primary's model
+# Unified numbered provider pool — provider 1 is the PRIMARY endpoint.
+# (The legacy DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY / DASHSCOPE_MODEL trio is still
+# honoured as a provider-1 alias, but the canonical config is the numbered pool.)
 
-# Backup providers — lower number = higher priority
-QWEN_MM_PROVIDER1_BASE_URL=https://api.siliconflow.cn/v1
+QWEN_MM_PROVIDER1_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/   # e.g. Google Gemini
 QWEN_MM_PROVIDER1_API_KEY=…
-QWEN_MM_PROVIDER1_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+QWEN_MM_PROVIDER1_MODEL=gemini-3.5-flash-lite        # optional: pin provider 1's model
 
-QWEN_MM_PROVIDER2_BASE_URL=…                 # and so on, numbering contiguous from 1
+QWEN_MM_PROVIDER2_BASE_URL=https://api.siliconflow.cn/v1
 QWEN_MM_PROVIDER2_API_KEY=…
-QWEN_MM_PROVIDER2_MODEL=…
+QWEN_MM_PROVIDER2_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+
+QWEN_MM_PROVIDER3_BASE_URL=…                 # and so on, numbering contiguous from 1
+QWEN_MM_PROVIDER3_API_KEY=…
+QWEN_MM_PROVIDER3_MODEL=…
 ```
 
 - **Retries & fallback**: a provider gets 3 retries (429 / 5xx / timeouts) before the next one is tried.
-- **Per-provider model pinning**: each provider can pin its own model via `QWEN_MM_PROVIDER<n>_MODEL` (or `DASHSCOPE_MODEL` for the primary).
-- **Foreign-model aware**: generic caption/OCR (`vision_chat` / `ocr`) accept any compatible model — e.g. run the cheap **Google Gemini** by default and only fall back to Qwen; perception tasks that need Qwen's structured output (`grounding`, Omni) automatically skip non-Qwen models and use a Qwen-capable provider.
+- **Per-provider model pinning**: each provider pins its own model via `QWEN_MM_PROVIDER<n>_MODEL`.
+- **Foreign-model aware**: generic caption/OCR (`vision_chat` / `ocr`) accept any compatible model — e.g. run the cheap **Google Gemini** as provider 1 and only fall back to Qwen; perception tasks that need Qwen's structured output (`grounding`, Omni) automatically skip non-Qwen models and use a Qwen-capable provider.
 - **Cost control**: put a cheap/free endpoint first, a Qwen endpoint second — quota exhausted? It just works.
 
 ### 🖼️ SiliconFlow Compatibility
 
-- `grounding` no longer sends DashScope-only `enable_thinking` to endpoints that reject it (SiliconFlow returns 400) — the flag is now sent only to the official DashScope base URL.
+- `grounding` picks the right thinking knob **per provider** based on the actual model serving the request: DashScope → `enable_thinking` (hybrid models), SiliconFlow → `thinking_budget` (thinking-only models honour it — 1 token ≈ no CoT), foreign models (Gemini / GPT-4o / …) → nothing (they reject unknown fields).
 - OpenAI-spec servers (e.g. vLLM) can opt into raw-base64 `input_audio` via `QWEN_MM_AUDIO_RAW_B64` (previously only DashScope's `data:;base64,…` form worked).
 
 ### 📦 New Files
@@ -134,16 +137,92 @@ qwen extensions install https://github.com/Kristin130/Qwen-MM-Plugins.git:qwen-m
 
 The API-based tools need a key — native image / video / document reading doesn't:
 
-- `DASHSCOPE_API_KEY` — `vision_chat` / `ocr` / `grounding` / `transcribe_audio` / Omni audio-video understanding / generation / video-memory build
+- `QWEN_MM_PROVIDER<n>_API_KEY` — the `api` capability (`vision_chat` / `ocr` / `grounding` / `transcribe_audio` / Omni audio-video understanding). Provider 1 is the primary endpoint; providers 2+ are automatic failover backups (any OpenAI-compatible endpoint: DashScope, Google Gemini, SiliconFlow, vLLM, …). The legacy `DASHSCOPE_API_KEY` trio still works as a provider-1 alias.
 - `SERPER_API_KEY` — `web_search` / `web_extractor` / `image_search`
+- `DASHSCOPE_API_KEY` — generation (`qwen_image` / `wan_*` / TTS) and video-memory builds (these use the DashScope-native REST API, not the provider pool)
 
-Export them in your shell, or persist them to `~/.qwen-mm-plugins/config` (read whenever a var isn't already in the environment — so GUI-launched harnesses pick them up too). The guided installer's Configure step writes that file for you:
+### 🛠 Config helper script
+
+The repo ships `scripts/config_env.sh` — an interactive editor for the provider pool and env keys (writes `~/.qwen-mm-plugins/config`, keeps provider numbering contiguous):
+
+```bash
+# interactive menu: add / list / remove providers, set API keys
+bash scripts/config_env.sh
+
+# print the current effective configuration
+bash scripts/config_env.sh --list
+
+# remove a key (e.g. a provider)
+bash scripts/config_env.sh --unset QWEN_MM_PROVIDER2_BASE_URL
+```
+
+It manages `QWEN_MM_PROVIDER<n>_BASE_URL` / `_API_KEY` / `_MODEL` for the failover pool, plus `SERPER_API_KEY` and the legacy `DASHSCOPE_*` trio. Shell-exported vars always win at runtime; the config file is the fallback (so GUI-launched harnesses pick the keys up too).
+
+### Or configure by hand
+
+```bash
+# Provider pool (example: Google Gemini primary + SiliconFlow Qwen backup)
+export QWEN_MM_PROVIDER1_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+export QWEN_MM_PROVIDER1_API_KEY=…
+export QWEN_MM_PROVIDER1_MODEL=gemini-3.5-flash-lite
+export QWEN_MM_PROVIDER2_BASE_URL=https://api.siliconflow.cn/v1
+export QWEN_MM_PROVIDER2_API_KEY=…
+export QWEN_MM_PROVIDER2_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+
+# Web search
+export SERPER_API_KEY=…
+```
+
+The guided installer's Configure step also writes the config file for you:
 
 ```bash
 bash install.sh configure
 ```
 
-For non-interactive/automation setup and the full environment-variable catalog, see [`docs/en/installation.md`](docs/en/installation.md).
+For non-interactive/automation setup and the full environment-variable catalog, see [`docs/en/installation.md`](docs/en/installation.md) and [`docs/en/multi_provider.md`](docs/en/multi_provider.md).
+
+## 🚀 Getting Started (install → configure → verify)
+
+**1. Install** a capability (from this fork):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kristin130/Qwen-MM-Plugins/main/install.sh | bash
+# or pick just the api capability: bash install.sh install api
+```
+
+**2. Configure your providers** — provider 1 is the primary, providers 2+ are failover backups:
+
+```bash
+# interactive editor (recommended)
+bash scripts/config_env.sh
+#   → option 5: add a provider (base_url / api_key / model)
+#   → provider 1 = primary, provider 2 = first fallback, …
+
+# or export them directly
+bash scripts/config_env.sh --list   # see what's configured
+```
+
+A sensible starter setup: **Google Gemini as provider 1** (cheap/free vision) and **SiliconFlow Qwen as provider 2** (Qwen-native grounding & Omni):
+
+```bash
+export QWEN_MM_PROVIDER1_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+export QWEN_MM_PROVIDER1_API_KEY=…
+export QWEN_MM_PROVIDER1_MODEL=gemini-3.5-flash-lite
+export QWEN_MM_PROVIDER2_BASE_URL=https://api.siliconflow.cn/v1
+export QWEN_MM_PROVIDER2_API_KEY=…
+export QWEN_MM_PROVIDER2_MODEL=Qwen/Qwen3-VL-30B-A3B-Thinking
+```
+
+> `vision_chat` / `ocr` run on provider 1 (any OpenAI-compatible model); `grounding` / Omni need Qwen's structured output, so they automatically skip non-Qwen providers and use the first Qwen one. When provider 1 is rate-limited / down / out of credit, the pool fails over to the next provider automatically.
+
+**3. Verify** the servers start and the keys resolve:
+
+```bash
+bash install.sh verify
+# or per server: uvx --from "qwen-mm-plugins[api] @ git+https://github.com/Kristin130/Qwen-MM-Plugins.git@main" qwen-mm-plugins-api --check-system
+```
+
+**4. Use it** — reference a file in your harness and just ask (examples below).
 
 ## 🚀 Quick Start
 

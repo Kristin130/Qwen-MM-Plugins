@@ -152,7 +152,7 @@ qwenpaw skills config    # 交互勾选启用
 
 ### API Key（仅 API 工具需要）
 
-`vision_chat` / `ocr` / `grounding` / `transcribe_audio` / 生成类工具需 `DASHSCOPE_API_KEY`，从 shell 环境继承（或写进 `~/.qwen-mm-plugins/config`）。联网工具（`web_search` / `web_extractor` / `image_search`）走 Serper API，需要 `SERPER_API_KEY`。原生读图 / 视频 / 文档不需要 key。
+`vision_chat` / `ocr` / `grounding` / `transcribe_audio` 需要一个 **OpenAI 兼容 Provider** —— 配置 provider 池（`QWEN_MM_PROVIDER1_*` 等；旧的 `DASHSCOPE_API_KEY` 作为 provider 1 的别名兼容），从 shell 环境继承（或写进 `~/.qwen-mm-plugins/config`）。生成类工具（`qwen_image` / `wan_*` / TTS）与 video-memory 构建走 DashScope 原生 REST，需要 `DASHSCOPE_API_KEY`。联网工具（`web_search` / `web_extractor` / `image_search`）走 Serper API，需要 `SERPER_API_KEY`。原生读图 / 视频 / 文档不需要 key。
 
 ### 系统工具（需用系统包管理器手动装）
 
@@ -191,11 +191,13 @@ qwenpaw skills config    # 交互勾选启用
 
 | 变量 | 用于 | 默认 |
 |---|---|---|
-| `DASHSCOPE_API_KEY` | vision_chat · ocr · grounding · transcribe_audio · 生成 · video-memory 构建 | *(这些功能必填)* |
+| `QWEN_MM_PROVIDER1_BASE_URL` / `_API_KEY` / `_MODEL` | provider 1（主端点）—— vision_chat · ocr · grounding · transcribe_audio · Omni | *(这些功能必填)* |
+| `QWEN_MM_PROVIDER2_BASE_URL` / `_API_KEY` / `_MODEL` | provider 2（第一个备用），… | *未设* |
+| `DASHSCOPE_API_KEY` | 旧的 provider-1 别名 · 生成（qwen_image / wan_* / TTS）· video-memory 构建 | *(那些功能必填)* |
 | `SERPER_API_KEY` | web_search · web_extractor · image_search | *(这些功能必填)* |
-| `DASHSCOPE_BASE_URL` | 覆盖 DashScope 端点 | DashScope 兼容地址 |
+| `DASHSCOPE_BASE_URL` | 旧的 provider-1 别名；覆盖 DashScope 端点 | DashScope 兼容地址 |
 | `SAM3_SERVER_URL` | `segmentation`（SAM3 服务） | *(分割必填)* |
-| `ASR_SERVER_URLS` | `transcribe_audio` 自建兜底（逗号分隔、轮询），DashScope 失败时用 | *未设 → 仅用 DashScope* |
+| `ASR_SERVER_URLS` | `transcribe_audio` 自建兜底（逗号分隔、轮询），池全部失败时用 | *未设 → 仅用池* |
 | `QWEN_MM_FFMPEG_TIMEOUT` | ffmpeg 超时（秒） | `120` |
 | `QWEN_MM_MAX_TOTAL_FRAMES` | 单个视频最多抽帧数 | `600` |
 | `QWEN_MM_CACHE` | 渲染派生产物的缓存目录 | 系统缓存目录 |

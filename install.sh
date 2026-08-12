@@ -55,8 +55,11 @@ ALL_HARNESSES="$MP_HARNESSES $CFG_HARNESSES"
 # config-location bootstrap (QWEN_MM_CONFIG/_DIR) and behavioral toggles (QWEN_MM_AUTOLAUNCH/…).
 # bash-3.2 safe (no assoc arrays).
 CONFIG_SPEC=(
-  "DASHSCOPE_API_KEY|1|cred||vision, OCR, grounding, ASR, generation, memory builds"
-  "DASHSCOPE_BASE_URL|0|cred|DashScope compat URL|override the DashScope OpenAI-compatible base URL"
+  "DASHSCOPE_API_KEY|1|cred||legacy provider-1 alias (prefer QWEN_MM_PROVIDER1_API_KEY)"
+  "DASHSCOPE_BASE_URL|0|cred|DashScope compat URL|legacy provider-1 alias (prefer QWEN_MM_PROVIDER1_BASE_URL)"
+  "QWEN_MM_PROVIDER1_BASE_URL|0|cred||provider 1 (primary) base URL — any OpenAI-compatible endpoint"
+  "QWEN_MM_PROVIDER1_API_KEY|0|cred||provider 1 (primary) API key"
+  "QWEN_MM_PROVIDER1_MODEL|0|cred||provider 1 model (default: tool default qwen)"
   "SERPER_API_KEY|1|cred||web_search / web_extractor / image_search"
   "SAM3_SERVER_URL|0|cred||segmentation SAM3 server URL"
   "ASR_SERVER_URLS|0|cred||self-hosted ASR fallback URLs (comma-separated)"
@@ -360,7 +363,10 @@ set_kv() {  # set_kv KEY VALUE
   chmod 600 "$CONFIG_FILE"
 }
 
-has_key_in_file() { [ -n "$(get_kv DASHSCOPE_API_KEY)" ]; }
+has_key_in_file() {
+  # any configured API key — legacy DASHSCOPE_API_KEY (provider-1 alias) or the numbered pool
+  [ -n "$(get_kv DASHSCOPE_API_KEY)" ] || [ -n "$(get_kv QWEN_MM_PROVIDER1_API_KEY)" ]
+}
 
 # get_kv KEY → the value KEY is set to in the config file (empty if unset / no file). Strips a
 # leading `export ` and surrounding quotes, matching shared.env's dotenv parse.
@@ -419,9 +425,9 @@ status() {
   local uvs=no; have uvx && uvs=ok
   box_row "$(mark $uvs) uv / uvx            ${CD}$(_fit "$(uvx --version 2>/dev/null || echo 'not found — needed to launch servers')" "$pad")${C0}"
   local kst=no ksrc='not set'
-  if [ -n "${DASHSCOPE_API_KEY:-}" ]; then kst=ok; ksrc='environment'
+  if [ -n "${DASHSCOPE_API_KEY:-}" ] || [ -n "${QWEN_MM_PROVIDER1_API_KEY:-}" ]; then kst=ok; ksrc='environment'
   elif has_key_in_file; then kst=ok; ksrc='config file'; fi
-  box_row "$(mark $kst) DASHSCOPE_API_KEY   ${CD}$(_fit "$ksrc" "$pad")${C0}"
+  box_row "$(mark $kst) API key (provider1/DASHSCOPE) ${CD}$(_fit "$ksrc" "$pad")${C0}"
   local cst=no; [ -f "$CONFIG_FILE" ] && cst=ok
   box_row "$(mark $cst) config file         ${CD}$(_fit "$CONFIG_FILE" "$pad")${C0}"
   local hs=''; for h in $ALL_HARNESSES; do have "$(harness_bin "$h")" && hs="$hs $h"; done
@@ -833,7 +839,7 @@ do_install() {
     box_close
   fi
   printf '\n'
-  if ! has_key_in_file && [ -z "${DASHSCOPE_API_KEY:-}" ]; then
+  if ! has_key_in_file && [ -z "${DASHSCOPE_API_KEY:-}" ] && [ -z "${QWEN_MM_PROVIDER1_API_KEY:-}" ]; then
     if confirm "No API key yet — configure it now?" y; then do_configure nested; fi
   fi
   pause   # hold the install result on screen — the menu reclears the moment we return
@@ -878,7 +884,7 @@ EOF
   (qwen-code · gemini-cli are automated — pick them from the Install menu.)
 
   Swap -core for -video-memory / -video-edit; extras [core] / [memory] / [all].
-  API key: run "Configure" from the menu, or put DASHSCOPE_API_KEY in ~/.qwen-mm-plugins/config.
+  API key: run "Configure" from the menu, or put QWEN_MM_PROVIDER1_API_KEY (or legacy DASHSCOPE_API_KEY) in ~/.qwen-mm-plugins/config.
 EOF
   fi
   pause
@@ -958,9 +964,9 @@ do_configure() {  # do_configure [nested] — nested: invoked from another actio
 do_verify() {
   screen; hr "Verify"
   [ -f "$CONFIG_FILE" ] && ok "config file present: $CONFIG_FILE" || warn "no config file yet — run Configure"
-  if [ -n "${DASHSCOPE_API_KEY:-}" ]; then ok "DASHSCOPE_API_KEY found in environment"
-  elif has_key_in_file; then ok "DASHSCOPE_API_KEY found in config file"
-  else warn "DASHSCOPE_API_KEY not set — run Configure"; fi
+  if [ -n "${DASHSCOPE_API_KEY:-}" ] || [ -n "${QWEN_MM_PROVIDER1_API_KEY:-}" ]; then ok "API key found in environment"
+  elif has_key_in_file; then ok "API key found in config file"
+  else warn "no API key set — run Configure (provider pool: QWEN_MM_PROVIDER1_* or legacy DASHSCOPE_*)"; fi
   local i any=0 installed
   spin "detecting installed capabilities..." installed -- detect_installed
   load_caps "" entry

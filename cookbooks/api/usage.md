@@ -61,9 +61,9 @@ claude plugin install qwen-mm-plugins-api@qwen-mm-plugins
 
 | Requirement | Description |
 |-------------|-------------|
-| `DASHSCOPE_API_KEY` | Required — authenticates all Qwen-VL, Qwen-Omni, and Qwen3-ASR requests. |
-| `DASHSCOPE_BASE_URL` | Optional — overrides the OpenAI-compatible endpoint for a proxy or gateway. |
-| `QWEN_MM_AUDIO_RAW_B64` | Optional — set to `1` when `DASHSCOPE_BASE_URL` points at an OpenAI-spec server (e.g. vLLM): audio is sent as raw base64 instead of the DashScope-style `data:;base64,…` form, which such servers reject. Leave unset for DashScope. |
+| `QWEN_MM_PROVIDER1_BASE_URL` / `QWEN_MM_PROVIDER1_API_KEY` (provider pool) | Required — provider 1 is the primary OpenAI-compatible endpoint; providers 2+ are automatic failover backups. Legacy `DASHSCOPE_API_KEY` / `DASHSCOPE_BASE_URL` still works as a provider-1 alias. Use the [config helper](../../scripts/config_env.sh) or set them in `~/.qwen-mm-plugins/config`.
+| `QWEN_MM_PROVIDER<n>_MODEL` | Optional — pin a per-provider model (e.g. `gemini-3.5-flash-lite` on a Google endpoint, `Qwen/Qwen3-VL-30B-A3B-Thinking` on SiliconFlow). Unset → tool default qwen model. |
+| `QWEN_MM_AUDIO_RAW_B64` | Optional — set to `1` when a provider points at an OpenAI-spec server (e.g. vLLM): audio is sent as raw base64 instead of the DashScope-style `data:;base64,…` form, which such servers reject. |
 | `SAM3_SERVER_URL` | Required only for `segmentation` (self-hosted SAM3 server). |
 | `ffmpeg` + `ffprobe` | Required for audio extraction, transcoding, and frame sampling/fitting. |
 | `OSS_AK`, `OSS_SK`, `OSS_ENDPOINT`, `OSS_BUCKET` | Optional — upload oversized local video and pass a signed URL instead of local frame sampling. Install the `oss` extra as well. |

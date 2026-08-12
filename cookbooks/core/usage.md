@@ -51,8 +51,8 @@ claude plugin install qwen-mm-plugins-search@qwen-mm-plugins    # web/image sear
 
 | Variable | Description |
 |----------|-------------|
-| `DASHSCOPE_API_KEY` | `qwen-mm-plugins-api` — the DashScope-backed tools (`vision_chat`, `ocr`, `grounding`, `transcribe_audio`). `core`'s local reading needs no key. |
-| `DASHSCOPE_BASE_URL` | Optional — override the DashScope OpenAI-compatible base URL (proxies/gateways). |
+| `QWEN_MM_PROVIDER1_BASE_URL` / `QWEN_MM_PROVIDER1_API_KEY` | `qwen-mm-plugins-api` — the provider-pool tools (`vision_chat`, `ocr`, `grounding`, `transcribe_audio`). Provider 1 = primary, providers 2+ = failover (legacy `DASHSCOPE_API_KEY` works as provider-1 alias). `core`'s local reading needs no key. |
+| `QWEN_MM_PROVIDER<n>_BASE_URL` | Optional — additional failover providers (any OpenAI-compatible endpoint). |
 | `SERPER_API_KEY` | `qwen-mm-plugins-search` — the web/image tools (`web_search` / `web_extractor` / `image_search`). Sign up at [serper.dev](https://serper.dev) — a Google-search API with a free starter tier |
 | `SAM3_SERVER_URL` | `qwen-mm-plugins-api` — only for `segmentation`. SAM3 is **self-hosted**: stand up the GPU HTTP server with the skill's [`references/launch_sam3_server.py`](../../src/capabilities/api/skill/references/launch_sam3_server.py) (needs the `sam3` package, a CUDA-enabled PyTorch, and the SAM3 checkpoint), then point this at it, e.g. `http://localhost:8787`. |
 

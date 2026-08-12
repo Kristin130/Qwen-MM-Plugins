@@ -3,9 +3,11 @@
 # config_env.sh — interactive env/config editor for qwen-mm-plugins.
 #
 # Manages ~/.qwen-mm-plugins/config (the KEY=VALUE file read by shared.env.get_env, used by
-# every MCP server). Supports the classic DASHSCOPE_API_KEY / DASHSCOPE_BASE_URL / DASHSCOPE_MODEL
-# plus the numbered failover pool QWEN_MM_PROVIDER1_BASE_URL / _API_KEY / _MODEL,
-# QWEN_MM_PROVIDER2_*, … (lower = higher priority) used by vision_chat / ocr / grounding / omni.
+# every MCP server). The canonical config is the numbered provider pool
+# QWEN_MM_PROVIDER1_BASE_URL / _API_KEY / _MODEL, QWEN_MM_PROVIDER2_*, … (provider 1 = primary,
+# lower number = higher priority) used by vision_chat / ocr / grounding / omni — plus the
+# legacy DASHSCOPE_API_KEY / DASHSCOPE_BASE_URL / DASHSCOPE_MODEL trio (provider-1 alias),
+# SERPER_API_KEY, and runtime knobs (QWEN_MM_CHAT_TIMEOUT / FFMPEG_TIMEOUT / CACHE).
 #
 # Usage:
 #     scripts/config_env.sh            # interactive menu
@@ -120,7 +122,7 @@ do_list() {
   echo "config file: $CONFIG"
   echo
   local key
-  echo "Primary (DashScope):"
+  echo "Legacy DashScope (honoured as provider-1 alias):"
   for key in DASHSCOPE_API_KEY DASHSCOPE_BASE_URL DASHSCOPE_MODEL; do
     local v; v="$(get_val "$key")"
     if [ "$key" = DASHSCOPE_API_KEY ] && [ -n "$v" ]; then
@@ -136,7 +138,7 @@ do_list() {
   local idxs; idxs="$(all_provider_indices)"
   if [ -n "$idxs" ]; then
     echo
-    echo "Failover providers (lower number = higher priority):"
+    echo "Provider pool (lower number = higher priority, 1 = primary):"
     for idx in $idxs; do
       local base key model
       base="$(get_val "$(provider_env "$idx" BASE_URL)")"
@@ -149,7 +151,7 @@ do_list() {
     done
   else
     echo
-    echo "Failover providers: none"
+    echo "Provider pool: none"
   fi
 }
 

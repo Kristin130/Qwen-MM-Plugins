@@ -154,7 +154,7 @@ qwenpaw skills config    # interactively check to enable
 
 ### API keys (only for API-based tools)
 
-`vision_chat` / `ocr` / `grounding` / `transcribe_audio` / generation tools require `DASHSCOPE_API_KEY`, inherited from the shell environment (or `~/.qwen-mm-plugins/config`). The web tools (`web_search` / `web_extractor` / `image_search`) use the Serper API and require `SERPER_API_KEY` instead. Native image/video/document reading needs no key.
+`vision_chat` / `ocr` / `grounding` / `transcribe_audio` need an **OpenAI-compatible provider** — configure the provider pool (`QWEN_MM_PROVIDER1_*` etc.; legacy `DASHSCOPE_API_KEY` works as a provider-1 alias), inherited from the shell environment (or `~/.qwen-mm-plugins/config`). Generation tools (`qwen_image` / `wan_*` / TTS) and video-memory builds use the DashScope-native REST API and require `DASHSCOPE_API_KEY`. The web tools (`web_search` / `web_extractor` / `image_search`) use the Serper API and require `SERPER_API_KEY` instead. Native image/video/document reading needs no key.
 
 ### System tools (install manually with your system package manager)
 
@@ -193,11 +193,13 @@ Config is read from the shell environment, falling back to `~/.qwen-mm-plugins/c
 
 | Variable | Used by | Default |
 |---|---|---|
-| `DASHSCOPE_API_KEY` | vision_chat · ocr · grounding · transcribe_audio · generation · video-memory build | *(required for these)* |
+| `QWEN_MM_PROVIDER1_BASE_URL` / `_API_KEY` / `_MODEL` | provider 1 (primary) — vision_chat · ocr · grounding · transcribe_audio · Omni | *(required for these)* |
+| `QWEN_MM_PROVIDER2_BASE_URL` / `_API_KEY` / `_MODEL` | provider 2 (first failover), … | *unset* |
+| `DASHSCOPE_API_KEY` | legacy provider-1 alias · generation (qwen_image / wan_* / TTS) · video-memory build | *(required for those)* |
 | `SERPER_API_KEY` | web_search · web_extractor · image_search | *(required for these)* |
-| `DASHSCOPE_BASE_URL` | override the DashScope endpoint | DashScope compat URL |
+| `DASHSCOPE_BASE_URL` | legacy provider-1 alias; override the DashScope endpoint | DashScope compat URL |
 | `SAM3_SERVER_URL` | `segmentation` (SAM3 server) | *(required for segmentation)* |
-| `ASR_SERVER_URLS` | `transcribe_audio` self-hosted fallback (comma-separated, round-robined) when DashScope fails | *unset → DashScope only* |
+| `ASR_SERVER_URLS` | `transcribe_audio` self-hosted fallback (comma-separated, round-robined) when the pool fails | *unset → pool only* |
 | `QWEN_MM_FFMPEG_TIMEOUT` | ffmpeg timeout, seconds | `120` |
 | `QWEN_MM_MAX_TOTAL_FRAMES` | max frames sampled from a video | `600` |
 | `QWEN_MM_CACHE` | cache dir for derived render artifacts | OS cache dir |
