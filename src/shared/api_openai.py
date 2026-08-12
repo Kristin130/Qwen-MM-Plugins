@@ -20,22 +20,19 @@ log = logging.getLogger(__name__)
 DEFAULT_MODEL = "qwen3.7-plus"
 
 # ── Multi-provider failover pool ────────────────────────────────────────────────────────────────────
-# Round-robin fallback across several OpenAI-compatible endpoints. The pool is configured with
-# QWEN_MM_PROVIDERS (comma-separated provider names); each name maps to
-#   QWEN_MM_PROVIDER_<NAME>_BASE_URL  and  QWEN_MM_PROVIDER_<NAME>_API_KEY
-# (upper-cased, non-alnum → _). The classic DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY pair is always
-# the implicit ``dashscope`` provider, so existing setups keep working with no new variables.
-# Order: explicit arguments > dashscope (DASHSCOPE_*) > numbered providers (QWEN_MM_PROVIDER<n>_*).
+# The pool is configured with numbered providers: QWEN_MM_PROVIDER<n>_BASE_URL / _API_KEY / _MODEL
+# for n=1,2,… — LOWER number = HIGHER priority, provider 1 is the primary endpoint. The legacy
+# DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY / DASHSCOPE_MODEL pair is honoured as a provider-1 alias
+# (so existing setups keep working), but the canonical config is the numbered pool.
 #
-# A provider can also pin its OWN model via QWEN_MM_PROVIDER<n>_MODEL — a foreign (non-qwen)
+# A provider can pin its OWN model via QWEN_MM_PROVIDER<n>_MODEL — a foreign (non-qwen)
 # model for a Qwen-proprietary protocol (grounding's bbox JSON, the Omni A/V protocol) is skipped
 # unless the tool opts in via ``allow_foreign_model`` (vision_chat / ocr do).
 #
 # Numbered providers: QWEN_MM_PROVIDER1_BASE_URL / _API_KEY / _MODEL, QWEN_MM_PROVIDER2_*, …
 # Discovered by scanning N=1,2,… (stop at the first gap), ordered by number — LOWER number =
-# HIGHER priority. The ``dashscope`` pair stays implicit and always sits FIRST.
+# HIGHER priority.
 PROVIDER_PREFIX = "QWEN_MM_PROVIDER"
-DASHSCOPE_PROVIDER = "dashscope"  # implicit provider backed by DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY
 
 # HTTP statuses worth retrying for OpenAI-compatible endpoints.
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
@@ -85,15 +82,27 @@ def _provider_env_name(index: int, suffix: str) -> str:
     return f"{PROVIDER_PREFIX}{index}_{suffix}"
 
 
+def _provider_env_value(index: int, suffix: str) -> str | None:
+    """Value of QWEN_MM_PROVIDER<n>_<SUFFIX>; provider 1 falls back to the legacy
+    DASHSCOPE_<SUFFIX> alias so existing setups keep working with no new variables."""
+    v = get_env(_provider_env_name(index, suffix))
+    if v is not None:
+        return v
+    if index == 1:
+        return get_env(f"DASHSCOPE_{suffix}")
+    return None
+
+
 def _numbered_providers() -> list[int]:
     """Provider indices discovered by scanning QWEN_MM_PROVIDER<n>_BASE_URL for n=1,2,…
     until the first gap (a provider without a base_url ends the sequence — numbering must stay
-    contiguous from 1). Returns indices in ascending order — LOWER number = HIGHER priority.
+    contiguous from 1). Provider 1 also honours the legacy DASHSCOPE_BASE_URL alias. Returns
+    indices in ascending order — LOWER number = HIGHER priority.
     """
     out: list[int] = []
     n = 1
     while True:
-        base = get_env(_provider_env_name(n, "BASE_URL"))
+        base = _provider_env_value(n, "BASE_URL")
         if not base:
             break  # first gap ends the scan
         out.append(n)
@@ -109,20 +118,14 @@ def _is_qwen_model(model: str) -> bool:
 def provider_model_override(arguments: dict[str, Any], base_url: str) -> str | None:
     """Per-provider model override for the endpoint ``base_url``, if configured.
 
-    ``DASHSCOPE_MODEL`` pins the primary endpoint's model; ``QWEN_MM_PROVIDER<n>_MODEL`` pins
-    a backup's. Matched by base_url so an explicit endpoint argument also resolves; returns
-    None when no provider pins a model for this endpoint.
+    ``QWEN_MM_PROVIDER<n>_MODEL`` pins provider n's model (provider 1 also honours the legacy
+    ``DASHSCOPE_MODEL`` alias). Matched by base_url so an explicit endpoint argument also
+    resolves; returns None when no provider pins a model for this endpoint.
     """
-    candidates: list[tuple[str | None, int]] = [(None, 0)]  # (base_url, index) — 0 = dashscope/primary
     for i in _numbered_providers():
-        candidates.append((get_env(_provider_env_name(i, "BASE_URL")), i))
-    for p_base, i in candidates:
-        if p_base is None:
-            p_base = get_env("DASHSCOPE_BASE_URL") or DEFAULT_DASHSCOPE_BASE_URL
+        p_base = _provider_env_value(i, "BASE_URL")
         if p_base and (p_base.rstrip("/") == base_url.rstrip("/") or p_base == base_url):
-            if i == 0:
-                return get_env("DASHSCOPE_MODEL") or None  # the primary can pin its own model
-            model = get_env(_provider_env_name(i, "MODEL"))
+            model = _provider_env_value(i, "MODEL")
             if model:
                 return model
     return None
@@ -133,9 +136,10 @@ def resolve_openai_endpoints(arguments: dict[str, Any]) -> list[tuple[str, str]]
 
     Precedence, first match wins at call time:
     1. explicit ``base_url`` / ``api_key`` arguments → a single endpoint (no failover);
-    2. the implicit ``dashscope`` provider (DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY);
-    3. each numbered provider ``QWEN_MM_PROVIDER<n>_*`` for n=1,2,… — LOWER number = HIGHER
-       priority (the scan stops at the first gap in base_url).
+    2. each numbered provider ``QWEN_MM_PROVIDER<n>_*`` for n=1,2,… — LOWER number = HIGHER
+       priority (the scan stops at the first gap in base_url). Provider 1 also honours the
+       legacy ``DASHSCOPE_BASE_URL`` / ``DASHSCOPE_API_KEY`` alias, so existing setups keep
+       working with no new variables — but the canonical config is the numbered pool.
 
     A provider without a base_url is skipped; a missing api_key falls back to "EMPTY" so
     local/self-hosted servers that ignore auth still work (DashScope itself then fails fast
@@ -144,16 +148,12 @@ def resolve_openai_endpoints(arguments: dict[str, Any]) -> list[tuple[str, str]]
     explicit_base = arguments.get("base_url")
     explicit_key = arguments.get("api_key")
     if explicit_base or explicit_key:
-        return [(explicit_base or get_env("DASHSCOPE_BASE_URL") or DEFAULT_DASHSCOPE_BASE_URL, explicit_key or "EMPTY")]
+        return [(explicit_base or _provider_env_value(1, "BASE_URL") or DEFAULT_DASHSCOPE_BASE_URL, explicit_key or "EMPTY")]
 
     pool: list[tuple[str, str]] = []
-    base = get_env("DASHSCOPE_BASE_URL") or DEFAULT_DASHSCOPE_BASE_URL
-    key = get_env("DASHSCOPE_API_KEY") or "EMPTY"
-    pool.append((base, key))  # dashscope is always first
-
     for i in _numbered_providers():
-        p_base = get_env(_provider_env_name(i, "BASE_URL"))
-        p_key = get_env(_provider_env_name(i, "API_KEY")) or "EMPTY"
+        p_base = _provider_env_value(i, "BASE_URL")
+        p_key = _provider_env_value(i, "API_KEY") or "EMPTY"
         pool.append((p_base.rstrip("/"), p_key))
     return pool
 
@@ -286,6 +286,7 @@ def call_openai_chat_failover(
     arguments: dict[str, Any] | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     allow_foreign_model: bool = False,
+    thinking: str | None = None,
     **kwargs: Any,
 ) -> Any:
     """Call OpenAI-compatible chat completions across the configured provider pool.
@@ -319,9 +320,23 @@ def call_openai_chat_failover(
             )
             continue
         log.debug("attempting provider base_url=%s model=%s", base_url, model)
+        provider_kwargs = dict(kwargs)
+        if thinking is not None:
+            # Per-provider thinking control — the knob depends on the ACTUAL model that
+            # serves the request and the endpoint, not on the base_url alone (the primary can
+            # pin a foreign model like Gemini behind a DashScope URL, which rejects both knobs):
+            #   · Qwen on DashScope official → ``enable_thinking`` (hybrid-thinking models)
+            #   · Qwen on SiliconFlow → ``thinking_budget`` (thinking-only models honour it)
+            #   · foreign models (Gemini / GPT-4o / …) → send nothing (they reject unknown fields)
+            if _is_qwen_model(model):
+                if "dashscope" in base_url:
+                    # ``min`` → hybrid-thinking models answer directly (no CoT)
+                    provider_kwargs["extra_body"] = {**provider_kwargs.get("extra_body", {}), "enable_thinking": thinking != "min"}
+                elif "siliconflow" in base_url:
+                    provider_kwargs["extra_body"] = {**provider_kwargs.get("extra_body", {}), "thinking_budget": 1 if thinking == "min" else 4096}
         try:
             return call_openai_chat(
-                base_url=base_url, api_key=api_key, max_retries=max_retries, **{**kwargs, "model": model}
+                base_url=base_url, api_key=api_key, max_retries=max_retries, **{**provider_kwargs, "model": model}
             )
         except Exception as e:  # noqa: BLE001 — any provider failure moves to the next one
             last_error = e
