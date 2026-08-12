@@ -164,7 +164,13 @@ def resolve_openai_endpoint(arguments: dict[str, Any]) -> tuple[str, str]:
     Kept for callers that want a single endpoint (e.g. dry_run previews); new code should use
     ``resolve_openai_endpoints`` and let ``call_openai_chat`` fail over.
     """
-    return resolve_openai_endpoints(arguments)[0]
+    endpoints = resolve_openai_endpoints(arguments)
+    if not endpoints:
+        raise RuntimeError(
+            "no providers configured — set QWEN_MM_PROVIDER1_BASE_URL / QWEN_MM_PROVIDER1_API_KEY "
+            "(or the legacy DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY pair)"
+        )
+    return endpoints[0]
 
 
 def is_url(value: str) -> bool:

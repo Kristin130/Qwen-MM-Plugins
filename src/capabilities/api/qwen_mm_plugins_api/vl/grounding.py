@@ -103,14 +103,13 @@ def parse_grounding(text: str, img_w: int, img_h: int) -> list[dict[str, Any]]:
 
 
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
-    from shared.api_openai import DEFAULT_MODEL, call_openai_chat_failover, resolve_openai_endpoint
+    from shared.api_openai import DEFAULT_MODEL, call_openai_chat_failover
     from shared.content import require_dep, require_file
 
     image_path = arguments.get("image_path", "")
     prompt = arguments.get("prompt", "")
     model = arguments.get("model") or DEFAULT_MODEL
     should_draw = arguments.get("return_img", False)
-    base_url, api_key = resolve_openai_endpoint(arguments)
 
     if err := require_file(image_path):
         return err
