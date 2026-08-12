@@ -342,18 +342,45 @@ def usage(import_name: str, note: str = "", *, launchable: bool = False) -> str:
 
 
 def config_report(entry: str) -> str:
-    """`--check-system` tail: where the user config file is + whether the API key resolves."""
+    """`--check-system` tail: where the user config file is + whether a provider is configured.
+
+    The canonical config is the numbered provider pool QWEN_MM_PROVIDER<n>_* for n=1,2,… (the scan
+    stops at the first gap); provider 1 also honours the legacy DASHSCOPE_* alias. This mirrors
+    shared.api_openai.resolve_openai_endpoints so the report never contradicts the runtime."""
     from shared.env import config_file, get_env
 
     path = config_file()
     lines = [f"User config: {path}" + ("" if os.path.exists(path) else f"  (none yet — `{entry} --setup`)")]
-    key = get_env("DASHSCOPE_API_KEY")
-    if key:
-        src = "environment" if os.environ.get("DASHSCOPE_API_KEY") else "config file"
-        masked = f"{key[:5]}…{key[-2:]}" if len(key) > 9 else "set"
-        lines.append(f"  ✓ DASHSCOPE_API_KEY ({src}): {masked}")
-    else:
-        lines.append(f"  ✗ DASHSCOPE_API_KEY not set — run `{entry} --setup`")
+
+    def provider_val(index: int, suffix: str) -> str | None:
+        val = get_env(f"QWEN_MM_PROVIDER{index}_{suffix}")
+        if val is None and index == 1:
+            val = get_env(f"DASHSCOPE_{suffix}")
+        return val
+
+    providers: list[int] = []
+    n = 1
+    while provider_val(n, "BASE_URL"):
+        providers.append(n)
+        n += 1
+
+    if not providers:
+        lines.append(f"  ✗ no API provider configured — run `{entry} --setup` or scripts/config_env.sh")
+        return "\n".join(lines)
+
+    for index in providers:
+        base = provider_val(index, "BASE_URL")
+        key = provider_val(index, "API_KEY")
+        model = provider_val(index, "MODEL") or "tool default"
+        if key:
+            env_key = f"QWEN_MM_PROVIDER{index}_API_KEY"
+            if index == 1 and not os.environ.get(env_key):
+                env_key = "DASHSCOPE_API_KEY"
+            src = "environment" if os.environ.get(env_key) else "config file"
+            masked = f"{key[:5]}…{key[-2:]}" if len(key) > 9 else "set"
+            lines.append(f"  ✓ provider{index} — {base}, model {model}, api key ({src}): {masked}")
+        else:
+            lines.append(f"  ✗ provider{index} — {base}, model {model}: api key missing — run `{entry} --setup`")
     return "\n".join(lines)
 
 

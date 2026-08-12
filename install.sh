@@ -58,7 +58,7 @@ CONFIG_SPEC=(
   "DASHSCOPE_API_KEY|1|cred||legacy provider-1 alias (prefer QWEN_MM_PROVIDER1_API_KEY)"
   "DASHSCOPE_BASE_URL|0|cred|DashScope compat URL|legacy provider-1 alias (prefer QWEN_MM_PROVIDER1_BASE_URL)"
   "QWEN_MM_PROVIDER1_BASE_URL|0|cred||provider 1 (primary) base URL — any OpenAI-compatible endpoint"
-  "QWEN_MM_PROVIDER1_API_KEY|0|cred||provider 1 (primary) API key"
+  "QWEN_MM_PROVIDER1_API_KEY|1|cred||provider 1 (primary) API key"
   "QWEN_MM_PROVIDER1_MODEL|0|cred||provider 1 model (default: tool default qwen)"
   "SERPER_API_KEY|1|cred||web_search / web_extractor / image_search"
   "SAM3_SERVER_URL|0|cred||segmentation SAM3 server URL"
