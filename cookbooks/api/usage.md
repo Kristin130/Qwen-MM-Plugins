@@ -50,7 +50,7 @@ temporal — it answers **when** something happens in a clip.
 ## Install
 
 ```bash
-claude plugin marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
+claude plugin marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
 claude plugin install qwen-mm-plugins-core@qwen-mm-plugins
 claude plugin install qwen-mm-plugins-api@qwen-mm-plugins
 ```

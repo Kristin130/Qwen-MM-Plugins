@@ -41,7 +41,7 @@ for worked examples.
 ## Install
 
 ```bash
-claude plugin marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
+claude plugin marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
 claude plugin install qwen-mm-plugins-core@qwen-mm-plugins      # local reading
 claude plugin install qwen-mm-plugins-api@qwen-mm-plugins       # cloud understanding (optional)
 claude plugin install qwen-mm-plugins-search@qwen-mm-plugins    # web/image search (optional)
@@ -85,7 +85,7 @@ Reads a full promo video, then opens a 35-page PDF and pulls out a specific figu
 
 ### Case 3 — install the plugins in GUI harness e.g. QwenWork, QoderWork
 
-Just **Query** the agent to set up: `hello 帮我装一下 https://github.com/QwenLM/Qwen-MM-Plugins 的 core 和 edu 插件`
+Just **Query** the agent to set up: `hello 帮我装一下 https://github.com/changliu-ncepu/Qwen-MM-Plugins 的 core 和 edu 插件`
 
 The agent installs the `core` + `edu-agent` skills and the core MCP server:
 

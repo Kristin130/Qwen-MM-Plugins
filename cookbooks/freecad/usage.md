@@ -38,7 +38,7 @@ auto-downloading it on Linux-x86_64 if missing; otherwise start it with
 ## Install
 
 ```bash
-claude plugin marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
+claude plugin marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
 claude plugin install qwen-mm-plugins-core@qwen-mm-plugins
 claude plugin install qwen-mm-plugins-freecad@qwen-mm-plugins
 ```

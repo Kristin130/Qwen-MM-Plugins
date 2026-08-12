@@ -44,7 +44,7 @@
 一个脚本搞定 **install · configure · verify · uninstall**，覆盖它支持的所有 harness（Claude Code · Codex · Qoder · OpenClaw · Qwen Code · Gemini CLI）。它底层调各 harness 自己的原生安装 —— 不重造轮子 —— 并把配置写进统一的 `~/.qwen-mm-plugins/config`（GUI / 终端都读），一次配好：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install.sh | bash   # 引导菜单
+curl -fsSL https://raw.githubusercontent.com/changliu-ncepu/Qwen-MM-Plugins/main/install.sh | bash   # 引导菜单
 ```
 
 也可以只跑单个动作 —— `bash install.sh install` / `configure` / `verify` / `uninstall`（`configure` 和 `verify` 各自做什么，见下面的[配置](#-配置)与[依赖](#-依赖)）。
@@ -62,18 +62,18 @@ curl -fsSL https://raw.githubusercontent.com/QwenLM/Qwen-MM-Plugins/main/install
 
 ```bash
 # Claude Code
-claude   plugin  marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
+claude   plugin  marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
 claude   plugin  install       qwen-mm-plugins-<cap>@qwen-mm-plugins
 # Qoder
-qodercli plugins marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
+qodercli plugins marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
 qodercli plugins install       qwen-mm-plugins-<cap>@qwen-mm-plugins
 # Codex
-codex    plugin  marketplace add https://github.com/QwenLM/Qwen-MM-Plugins.git
+codex    plugin  marketplace add https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
 codex    plugin  add           qwen-mm-plugins-<cap>@qwen-mm-plugins
 # OpenClaw
-openclaw plugins install       qwen-mm-plugins-<cap> --marketplace https://github.com/QwenLM/Qwen-MM-Plugins.git
+openclaw plugins install       qwen-mm-plugins-<cap> --marketplace https://github.com/changliu-ncepu/Qwen-MM-Plugins.git
 # Qwen Code
-qwen extensions install https://github.com/QwenLM/Qwen-MM-Plugins.git:qwen-mm-plugins-<cap> --consent
+qwen extensions install https://github.com/changliu-ncepu/Qwen-MM-Plugins.git:qwen-mm-plugins-<cap> --consent
 ```
 
 `marketplace add` 也接受本地仓库路径；重复执行是安全的。在 **codex** 上，`marketplace add` **不会**刷新已添加的 marketplace，所以要装入新增能力时，先执行 `codex plugin marketplace upgrade qwen-mm-plugins` 再 `plugin add`。

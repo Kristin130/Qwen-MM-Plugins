@@ -4,7 +4,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "qwen-mm-plugins[example] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main",
+        "qwen-mm-plugins[example] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main",
         "qwen-mm-plugins-example"
       ]
     }

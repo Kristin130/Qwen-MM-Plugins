@@ -35,7 +35,7 @@ Claude Code can also install this way — the only difference from the marketpla
 ln -s "$(pwd)/src/capabilities/<cap>/skill" ~/.claude/skills/qwen-mm-plugins-<cap>
 # 2) MCP (for local code, replace --from with "$(pwd)[<cap>]")
 claude mcp add qwen-mm-plugins-<cap> -- \
-  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
+  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
 ```
 
 To switch capabilities, replace the skill path, the `[<cap>]` profile, and the entry name `qwen-mm-plugins-<cap>` all together with those of the target capability.
@@ -50,7 +50,7 @@ To switch capabilities, replace the skill path, the `[<cap>]` profile, and the e
   "mcp": {
     "qwen-mm-plugins-<cap>": {
       "type": "local",
-      "command": ["uvx", "--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"],
+      "command": ["uvx", "--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"],
       "environment": { "DASHSCOPE_API_KEY": "{env:DASHSCOPE_API_KEY}" },
       "enabled": true
     }
@@ -69,14 +69,14 @@ Headless: `opencode run --auto "…"`. (A custom OpenAI-compatible provider must
 `npm i -g @qwen-code/qwen-code@latest`. Install a capability as a **native extension** (bundles skill + MCP + context) in one command, from the Claude marketplace over git:
 
 ```bash
-qwen extensions install https://github.com/QwenLM/Qwen-MM-Plugins.git:qwen-mm-plugins-<cap> --consent
+qwen extensions install https://github.com/changliu-ncepu/Qwen-MM-Plugins.git:qwen-mm-plugins-<cap> --consent
 ```
 
 Or register just the MCP server (then copy the skill into `~/.qwen/skills/qwen-mm-plugins-<cap>`):
 
 ```bash
 qwen mcp add qwen-mm-plugins-<cap> --scope user --trust --timeout 600000 \
-  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
+  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
 ```
 
 Headless: `qwen -p "…" --yolo -o text`. Uninstall: `qwen extensions uninstall qwen-mm-plugins-<cap>`.
@@ -87,8 +87,8 @@ Headless: `qwen -p "…" --yolo -o text`. Uninstall: `qwen extensions uninstall 
 
 ```bash
 gemini mcp add -s user qwen-mm-plugins-<cap> \
-  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
-gemini skills install https://github.com/QwenLM/Qwen-MM-Plugins.git --path src/capabilities/<cap>/skill --consent
+  uvx --from "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap>
+gemini skills install https://github.com/changliu-ncepu/Qwen-MM-Plugins.git --path src/capabilities/<cap>/skill --consent
 ```
 
 From a local checkout, `gemini extensions link src/capabilities/<cap>` bundles both. MCP loads only in **trusted** folders (trust it when prompted). Headless: `gemini -p "…" -y`. Uninstall: `gemini mcp remove -s user qwen-mm-plugins-<cap>` + `gemini skills uninstall qwen-mm-plugins-<cap>`.
@@ -111,7 +111,7 @@ pi install npm:pi-mcp-adapter                                               # on
   "settings": { "toolPrefix": "none" },
   "mcpServers": { "qwen-mm-plugins-<cap>": {
     "command": "uvx",
-    "args": ["--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"],
+    "args": ["--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"],
     "env": { "DASHSCOPE_API_KEY": "${DASHSCOPE_API_KEY}" },
     "directTools": ["read_image", "ocr", "visualize"]
   } }
@@ -141,7 +141,7 @@ qwenpaw skills config    # interactively check to enable
         "enabled": true,
         "transport": "stdio",
         "command": "uvx",
-        "args": ["--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"]
+        "args": ["--from", "qwen-mm-plugins[<cap>] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main", "qwen-mm-plugins-<cap>"]
       }
     }
   }
@@ -168,7 +168,7 @@ qwenpaw skills config    # interactively check to enable
 
 How to see which system tools are missing:
 
-- Check with uvx: `uvx --from "qwen-mm-plugins[all] @ git+https://github.com/QwenLM/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap> --check-system`.
+- Check with uvx: `uvx --from "qwen-mm-plugins[all] @ git+https://github.com/changliu-ncepu/Qwen-MM-Plugins.git@main" qwen-mm-plugins-<cap> --check-system`.
 - At server startup, if an installed extra is missing its system tool, a warning line is printed to stderr.
 - At actual tool-call time, you get a "please install X" text message, while other tools keep working.
 
