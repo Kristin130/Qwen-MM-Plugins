@@ -202,6 +202,8 @@ qwenpaw skills config    # 交互勾选启用
 | `QWEN_MM_CONFIG_DIR` | 覆盖 GUI harness 读取密钥的配置目录 | `~/.qwen-mm-plugins` |
 | `QWEN_MM_CONFIG` | 覆盖配置文件的完整路径 | `<配置目录>/config` |
 
+> **多端点备用 / 轮询**：`vision_chat` / `ocr` / `grounding` / Omni 系可配置多个备用 OpenAI 兼容端点（`QWEN_MM_PROVIDER1_*`、`QWEN_MM_PROVIDER2_*` …，数字越小优先级越高），主端点失败后自动切换；每个 provider 可指定自己的模型（含 Gemini / GPT-4o 等非 qwen 模型，但 grounding / Omni 只接受 qwen 模型）。交互配置用 `scripts/config_env.sh`。详见 [多 Provider 备用 / 轮询配置](./multi_provider.md)。
+
 > **blender / freecad** 是瘦客户端 —— 它们连接到一台**正在运行**、装好随包 addon 的 Blender / FreeCAD。`QWEN_MM_AUTOLAUNCH=1`（插件清单里默认预设）会在第一次工具调用时把应用拉起来，Linux-x86_64 上缺应用时自动下载。完整安装、环境变量与排障见 [`cookbooks/blender`](../../cookbooks/blender/usage.md) / [`cookbooks/freecad`](../../cookbooks/freecad/usage.md)。
 
 ## 目录结构

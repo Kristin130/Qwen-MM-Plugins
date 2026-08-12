@@ -59,7 +59,7 @@ TOOL: dict[str, Any] = {
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     from shared.api_openai import (
         DEFAULT_MODEL,
-        call_openai_chat,
+        call_openai_chat_failover,
         encode_image_source,
         encode_video_source,
         resolve_openai_endpoint,
@@ -124,7 +124,12 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         if importlib.util.find_spec("openai") is None:
             return text_error("missing dependency. Install with: pip install openai")
 
-        response = call_openai_chat(base_url=base_url, api_key=api_key, **kwargs)
+        response = call_openai_chat_failover(
+            arguments=arguments,
+            # vision_chat is generic caption/VQA — a backup provider's non-qwen model is fine.
+            allow_foreign_model=True,
+            **kwargs,
+        )
         result = response.model_dump()
         return [{"type": "text", "text": json.dumps(result, indent=2, ensure_ascii=False)}]
 

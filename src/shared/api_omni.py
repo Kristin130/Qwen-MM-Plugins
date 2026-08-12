@@ -27,7 +27,12 @@ import re
 from pathlib import Path
 from typing import Any
 
-from shared.api_openai import is_url, resolve_openai_endpoint
+from shared.api_openai import (
+    is_url,
+    provider_model_override,
+    resolve_openai_endpoint,
+    resolve_openai_endpoints,
+)
 from shared.env import get_env
 
 log = logging.getLogger(__name__)
@@ -98,6 +103,11 @@ class PayloadTooLargeError(ValueError):
 def resolve_omni_endpoint(arguments: dict[str, Any]) -> tuple[str, str]:
     """(base_url, api_key) for an Omni call — same precedence as the OpenAI-compatible path."""
     return resolve_openai_endpoint(arguments)
+
+
+def resolve_omni_endpoints(arguments: dict[str, Any]) -> list[tuple[str, str]]:
+    """Ordered (base_url, api_key) pool for an Omni call — reuses the api_openai provider list."""
+    return resolve_openai_endpoints(arguments)
 
 
 def _omni_timeout() -> int:
@@ -282,43 +292,110 @@ def call_omni(
             isinstance(e, openai.APIStatusError) and getattr(e, "status_code", None) in _RETRYABLE_STATUS
         )
 
-    client = OpenAI(api_key=api_key, base_url=base_url, timeout=_omni_timeout())
+    def _call_once(provider_base: str, provider_key: str) -> tuple[str, Any]:
+        # max_retries=0: the SDK's own retry loop is disabled so retry_call + the failover pool
+        # own the retry budget (otherwise each retry attempt fans out 3 HTTP requests).
+        client = OpenAI(api_key=provider_key, base_url=provider_base, timeout=_omni_timeout(), max_retries=0)
 
-    def _once() -> tuple[str, Any]:
-        stream = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            stream=True,
-            stream_options={"include_usage": True},
-            extra_body=body,
+        def _once() -> tuple[str, Any]:
+            stream = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stream=True,
+                stream_options={"include_usage": True},
+                extra_body=body,
+            )
+            parts: list[str] = []
+            usage = None
+            for chunk in stream:
+                if getattr(chunk, "usage", None) is not None:
+                    usage = chunk.usage
+                for choice in getattr(chunk, "choices", None) or []:
+                    delta = getattr(choice, "delta", None)
+                    content = getattr(delta, "content", None) if delta else None
+                    if content:
+                        parts.append(content)
+            text = "".join(parts)
+            if not text.strip():
+                raise EmptyCompletionError("omni returned an empty completion")
+            return text, usage
+
+        return retry_call(
+            _once,
+            attempts=max_retries,
+            base_backoff=DEFAULT_RETRY_BACKOFF,
+            mode="exp",
+            cap=60.0,
+            should_retry=_is_transient,
+            on_exhausted="raise",
+            log=log,
         )
-        parts: list[str] = []
-        usage = None
-        for chunk in stream:
-            if getattr(chunk, "usage", None) is not None:
-                usage = chunk.usage
-            for choice in getattr(chunk, "choices", None) or []:
-                delta = getattr(choice, "delta", None)
-                content = getattr(delta, "content", None) if delta else None
-                if content:
-                    parts.append(content)
-        text = "".join(parts)
-        if not text.strip():
-            raise EmptyCompletionError("omni returned an empty completion")
-        return text, usage
 
-    return retry_call(
-        _once,
-        attempts=max_retries,
-        base_backoff=DEFAULT_RETRY_BACKOFF,
-        mode="exp",
-        cap=60.0,
-        should_retry=_is_transient,
-        on_exhausted="raise",
-        log=log,
-    )
+    return _call_once(base_url, api_key)
+
+
+def _is_qwen_model(model: str) -> bool:
+    """True if ``model`` is a Qwen-family model id (contains ``qwen``, case-insensitive)."""
+    return "qwen" in model.lower()
+
+
+def call_omni_failover(
+    *,
+    arguments: dict[str, Any] | None = None,
+    model: str = DEFAULT_OMNI_MODEL,
+    messages: list[dict[str, Any]],
+    max_tokens: int = 65536,
+    temperature: float = 0.7,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    extra_body: dict[str, Any] | None = None,
+) -> tuple[str, Any]:
+    """Call the Omni model across the configured provider pool, failing over per provider.
+
+    Providers come from ``resolve_omni_endpoints(arguments or {})`` — an explicit
+    ``base_url``/``api_key`` yields exactly one provider (no failover, backwards compatible);
+    otherwise the pool is walked in order and a provider that exhausts its retries is skipped
+    for the next one. The LAST error is raised after every provider has failed.
+
+    Per-provider model override: ``QWEN_MM_PROVIDER_<NAME>_MODEL`` replaces the default model on
+    that endpoint. The Omni A/V protocol is Qwen-proprietary, so a pinned foreign (non-qwen)
+    model makes the provider skipped with a warning — there is no opt-in for Omni.
+    """
+    providers = resolve_omni_endpoints(arguments or {})
+    last_error: Exception | None = None
+    for base_url, api_key in providers:
+        effective_model = provider_model_override(arguments or {}, base_url) or model
+        if not _is_qwen_model(effective_model):
+            log.warning(
+                "provider %s pins non-qwen model %r — skipping (the Omni A/V protocol needs a qwen model)",
+                base_url,
+                effective_model,
+            )
+            continue
+        log.debug("attempting omni provider base_url=%s model=%s", base_url, effective_model)
+        try:
+            return call_omni(
+                base_url=base_url,
+                api_key=api_key,
+                model=effective_model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                max_retries=max_retries,
+                extra_body=extra_body,
+            )
+        except Exception as e:  # noqa: BLE001 — any provider failure moves to the next one
+            last_error = e
+            log.warning(
+                "omni provider %s failed after %d attempt(s): %s — trying next provider",
+                base_url,
+                max_retries,
+                e,
+            )
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("no providers configured")
 
 
 # ── Robust JSON parsing (ports the reference omni client's extract_json / call_json) ───────────────

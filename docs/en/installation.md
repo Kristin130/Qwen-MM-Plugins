@@ -204,6 +204,8 @@ Config is read from the shell environment, falling back to `~/.qwen-mm-plugins/c
 | `QWEN_MM_CONFIG_DIR` | override the config dir that GUI harnesses read for keys | `~/.qwen-mm-plugins` |
 | `QWEN_MM_CONFIG` | override the full config-file path | `<config dir>/config` |
 
+> **Multi-endpoint failover**: `vision_chat` / `ocr` / `grounding` / the Omni family can use several backup OpenAI-compatible endpoints (`QWEN_MM_PROVIDER1_*`, `QWEN_MM_PROVIDER2_*`, … — lower number = higher priority), auto-switching when the primary fails; each provider can pin its own model (including non-qwen models like Gemini / GPT-4o — though `grounding` / Omni accept qwen models only). Configure interactively with `scripts/config_env.sh`. See [Multi-provider failover](./multi_provider.md).
+
 > **blender / freecad** are thin clients — they connect to a **running** Blender / FreeCAD carrying the bundled addon. `QWEN_MM_AUTOLAUNCH=1` (preset in the plugin manifests) brings the app up on the first tool call, auto-downloading it on Linux-x86_64 if missing. See [`cookbooks/blender`](../../cookbooks/blender/usage.md) / [`cookbooks/freecad`](../../cookbooks/freecad/usage.md) for the full setup, env vars, and troubleshooting.
 
 ## Repository layout

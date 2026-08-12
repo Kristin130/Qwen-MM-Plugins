@@ -38,7 +38,7 @@ DEFAULT_PROMPT = "请对这张图片进行OCR文字识别，提取图片中所�
 
 
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
-    from shared.api_openai import DEFAULT_MODEL, call_openai_chat, resolve_openai_endpoint
+    from shared.api_openai import DEFAULT_MODEL, call_openai_chat_failover, resolve_openai_endpoint
     from shared.content import require_dep, require_file
 
     image_path = arguments.get("image_path", "")
@@ -64,9 +64,10 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
     try:
-        response = call_openai_chat(
-            base_url=base_url,
-            api_key=api_key,
+        response = call_openai_chat_failover(
+            arguments=arguments,
+            # OCR works on any compatible model — a backup provider's non-qwen model is fine.
+            allow_foreign_model=True,
             model=model,
             messages=messages,
             max_tokens=4096,

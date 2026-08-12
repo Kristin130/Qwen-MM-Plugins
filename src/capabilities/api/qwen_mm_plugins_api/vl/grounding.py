@@ -103,7 +103,7 @@ def parse_grounding(text: str, img_w: int, img_h: int) -> list[dict[str, Any]]:
 
 
 def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
-    from shared.api_openai import DEFAULT_MODEL, call_openai_chat, resolve_openai_endpoint
+    from shared.api_openai import DEFAULT_MODEL, call_openai_chat_failover, resolve_openai_endpoint
     from shared.content import require_dep, require_file
 
     image_path = arguments.get("image_path", "")
@@ -144,15 +144,18 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
     try:
-        response = call_openai_chat(
-            base_url=base_url,
-            api_key=api_key,
+        kwargs: dict[str, Any] = dict(
+            arguments=arguments,
             model=model,
             messages=messages,
             max_tokens=2048,
-            # Grounding is a perception task, no need to think
-            extra_body={"enable_thinking": False},
         )
+        # Grounding is a perception task, no need to think. `enable_thinking` is a DashScope
+        # endpoint extension — SiliconFlow and other OpenAI-compatible endpoints reject unknown
+        # extra params, so only send it to the DashScope official base URL.
+        if "dashscope.aliyuncs.com" in base_url:
+            kwargs["extra_body"] = {"enable_thinking": False}
+        response = call_openai_chat_failover(**kwargs)
         raw_text = response.choices[0].message.content or ""
         detections = parse_grounding(raw_text, orig_w, orig_h)
     except Exception as e:

@@ -18,6 +18,27 @@ from shared.env import DEFAULT_DASHSCOPE_BASE_URL, get_env
 log = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "qwen3.7-plus"
+
+# ── Multi-provider failover pool ────────────────────────────────────────────────────────────────────
+# Round-robin fallback across several OpenAI-compatible endpoints. The pool is configured with
+# QWEN_MM_PROVIDERS (comma-separated provider names); each name maps to
+#   QWEN_MM_PROVIDER_<NAME>_BASE_URL  and  QWEN_MM_PROVIDER_<NAME>_API_KEY
+# (upper-cased, non-alnum → _). The classic DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY pair is always
+# the implicit ``dashscope`` provider, so existing setups keep working with no new variables.
+# Order: explicit arguments > dashscope (DASHSCOPE_*) > numbered providers (QWEN_MM_PROVIDER<n>_*).
+#
+# A provider can also pin its OWN model via QWEN_MM_PROVIDER<n>_MODEL — a foreign (non-qwen)
+# model for a Qwen-proprietary protocol (grounding's bbox JSON, the Omni A/V protocol) is skipped
+# unless the tool opts in via ``allow_foreign_model`` (vision_chat / ocr do).
+#
+# Numbered providers: QWEN_MM_PROVIDER1_BASE_URL / _API_KEY / _MODEL, QWEN_MM_PROVIDER2_*, …
+# Discovered by scanning N=1,2,… (stop at the first gap), ordered by number — LOWER number =
+# HIGHER priority. The ``dashscope`` pair stays implicit and always sits FIRST.
+PROVIDER_PREFIX = "QWEN_MM_PROVIDER"
+DASHSCOPE_PROVIDER = "dashscope"  # implicit provider backed by DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY
+
+# HTTP statuses worth retrying for OpenAI-compatible endpoints.
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_BACKOFF = 1.0
 # Request timeout (seconds) for a chat call — generous for long vision prompts, but bounded so a
@@ -59,15 +80,91 @@ def _chat_timeout() -> int:
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
 
-def resolve_openai_endpoint(arguments: dict[str, Any]) -> tuple[str, str]:
-    """Resolve (base_url, api_key) for an OpenAI-compatible call.
+def _provider_env_name(index: int, suffix: str) -> str:
+    """QWEN_MM_PROVIDER<n>_<SUFFIX> for the numbered provider ``index``."""
+    return f"{PROVIDER_PREFIX}{index}_{suffix}"
 
-    Precedence: explicit argument → DashScope env → default. api_key falls back to
-    "EMPTY" so local/self-hosted servers that ignore auth still work.
+
+def _numbered_providers() -> list[int]:
+    """Provider indices discovered by scanning QWEN_MM_PROVIDER<n>_BASE_URL for n=1,2,…
+    until the first gap (a provider without a base_url ends the sequence — numbering must stay
+    contiguous from 1). Returns indices in ascending order — LOWER number = HIGHER priority.
     """
-    base_url = arguments.get("base_url") or get_env("DASHSCOPE_BASE_URL") or DEFAULT_DASHSCOPE_BASE_URL
-    api_key = arguments.get("api_key") or get_env("DASHSCOPE_API_KEY") or "EMPTY"
-    return base_url, api_key
+    out: list[int] = []
+    n = 1
+    while True:
+        base = get_env(_provider_env_name(n, "BASE_URL"))
+        if not base:
+            break  # first gap ends the scan
+        out.append(n)
+        n += 1
+    return out
+
+
+def _is_qwen_model(model: str) -> bool:
+    """True if ``model`` is a Qwen-family model id (contains ``qwen``, case-insensitive)."""
+    return "qwen" in model.lower()
+
+
+def provider_model_override(arguments: dict[str, Any], base_url: str) -> str | None:
+    """Per-provider model override for the endpoint ``base_url``, if configured.
+
+    ``DASHSCOPE_MODEL`` pins the primary endpoint's model; ``QWEN_MM_PROVIDER<n>_MODEL`` pins
+    a backup's. Matched by base_url so an explicit endpoint argument also resolves; returns
+    None when no provider pins a model for this endpoint.
+    """
+    candidates: list[tuple[str | None, int]] = [(None, 0)]  # (base_url, index) — 0 = dashscope/primary
+    for i in _numbered_providers():
+        candidates.append((get_env(_provider_env_name(i, "BASE_URL")), i))
+    for p_base, i in candidates:
+        if p_base is None:
+            p_base = get_env("DASHSCOPE_BASE_URL") or DEFAULT_DASHSCOPE_BASE_URL
+        if p_base and (p_base.rstrip("/") == base_url.rstrip("/") or p_base == base_url):
+            if i == 0:
+                return get_env("DASHSCOPE_MODEL") or None  # the primary can pin its own model
+            model = get_env(_provider_env_name(i, "MODEL"))
+            if model:
+                return model
+    return None
+
+
+def resolve_openai_endpoints(arguments: dict[str, Any]) -> list[tuple[str, str]]:
+    """Resolve the ordered (base_url, api_key) pool for an OpenAI-compatible call.
+
+    Precedence, first match wins at call time:
+    1. explicit ``base_url`` / ``api_key`` arguments → a single endpoint (no failover);
+    2. the implicit ``dashscope`` provider (DASHSCOPE_BASE_URL / DASHSCOPE_API_KEY);
+    3. each numbered provider ``QWEN_MM_PROVIDER<n>_*`` for n=1,2,… — LOWER number = HIGHER
+       priority (the scan stops at the first gap in base_url).
+
+    A provider without a base_url is skipped; a missing api_key falls back to "EMPTY" so
+    local/self-hosted servers that ignore auth still work (DashScope itself then fails fast
+    with an actionable message).
+    """
+    explicit_base = arguments.get("base_url")
+    explicit_key = arguments.get("api_key")
+    if explicit_base or explicit_key:
+        return [(explicit_base or get_env("DASHSCOPE_BASE_URL") or DEFAULT_DASHSCOPE_BASE_URL, explicit_key or "EMPTY")]
+
+    pool: list[tuple[str, str]] = []
+    base = get_env("DASHSCOPE_BASE_URL") or DEFAULT_DASHSCOPE_BASE_URL
+    key = get_env("DASHSCOPE_API_KEY") or "EMPTY"
+    pool.append((base, key))  # dashscope is always first
+
+    for i in _numbered_providers():
+        p_base = get_env(_provider_env_name(i, "BASE_URL"))
+        p_key = get_env(_provider_env_name(i, "API_KEY")) or "EMPTY"
+        pool.append((p_base.rstrip("/"), p_key))
+    return pool
+
+
+def resolve_openai_endpoint(arguments: dict[str, Any]) -> tuple[str, str]:
+    """Resolve the FIRST (base_url, api_key) for an OpenAI-compatible call (no failover).
+
+    Kept for callers that want a single endpoint (e.g. dry_run previews); new code should use
+    ``resolve_openai_endpoints`` and let ``call_openai_chat`` fail over.
+    """
+    return resolve_openai_endpoints(arguments)[0]
 
 
 def is_url(value: str) -> bool:
@@ -170,7 +267,9 @@ def call_openai_chat(
             isinstance(e, openai.APIStatusError) and getattr(e, "status_code", None) in _RETRYABLE_STATUS
         )
 
-    client = OpenAI(api_key=api_key, base_url=base_url, timeout=_chat_timeout())
+    # Disable the SDK's own retry loop (OpenAI() defaults to max_retries=2) so retry_call + the
+    # failover pool own the retry budget — otherwise every retry attempt fans out 3 HTTP requests.
+    client = OpenAI(api_key=api_key, base_url=base_url, timeout=_chat_timeout(), max_retries=0)
     return retry_call(
         lambda: client.chat.completions.create(**kwargs),
         attempts=max_retries,
@@ -180,3 +279,58 @@ def call_openai_chat(
         on_exhausted="raise",
         log=log,
     )
+
+
+def call_openai_chat_failover(
+    *,
+    arguments: dict[str, Any] | None = None,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    allow_foreign_model: bool = False,
+    **kwargs: Any,
+) -> Any:
+    """Call OpenAI-compatible chat completions across the configured provider pool.
+
+    ``call_openai_chat`` (single endpoint, existing signature) plus failover: the providers come
+    from ``resolve_openai_endpoints(arguments or {})`` — an explicit ``base_url``/``api_key``
+    yields exactly one provider (no failover, backwards compatible); otherwise the pool is walked
+    in order, and when a provider exhausts its retries the next one is tried. After the last
+    provider fails, the LAST error is raised.
+
+    Per-provider model override: when the provider pins ``QWEN_MM_PROVIDER_<NAME>_MODEL`` the
+    call uses that model instead of the ``model`` kwarg. A pinned model that is NOT a qwen model
+    is only used when ``allow_foreign_model=True`` (vision_chat / ocr — generic caption/OCR work
+    on any compatible model); otherwise that provider is skipped with a warning, because the
+    Qwen-proprietary protocols (grounding bbox JSON, Omni A/V) don't transfer to foreign models.
+
+    Retry policy per provider is the same as ``call_openai_chat`` (transient openai errors + 429/
+    5xx statuses); each provider's ``api_key``/``base_url`` is logged at DEBUG only.
+    """
+    providers = resolve_openai_endpoints(arguments or {})
+    requested_model = kwargs.get("model") or DEFAULT_MODEL
+    last_error: Exception | None = None
+    for base_url, api_key in providers:
+        model = provider_model_override(arguments or {}, base_url) or requested_model
+        if not allow_foreign_model and not _is_qwen_model(model):
+            log.warning(
+                "provider %s pins non-qwen model %r — skipping (this tool needs a qwen model; "
+                "only vision_chat / ocr accept foreign models)",
+                base_url,
+                model,
+            )
+            continue
+        log.debug("attempting provider base_url=%s model=%s", base_url, model)
+        try:
+            return call_openai_chat(
+                base_url=base_url, api_key=api_key, max_retries=max_retries, **{**kwargs, "model": model}
+            )
+        except Exception as e:  # noqa: BLE001 — any provider failure moves to the next one
+            last_error = e
+            log.warning(
+                "provider %s failed after %d attempt(s): %s — trying next provider",
+                base_url,
+                max_retries,
+                e,
+            )
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("no providers configured")

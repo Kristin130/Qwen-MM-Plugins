@@ -192,7 +192,7 @@ def test_string_timestamps_are_coerced_to_float(monkeypatch):
 def test_caption_returns_markdown_report(monkeypatch):
     # caption is the one report-style tool: raw Markdown from call_omni, no JSON parse
     report = "## Storyline\n\n<0:00.000> - <0:03.000>\nA test pattern.\n\n## Summary of Safety Findings\n\nSafe."
-    monkeypatch.setattr(_common, "call_omni", lambda **kw: (report, None))
+    monkeypatch.setattr(_common, "call_omni_failover", lambda **kw: (report, None))
     path = _dummy(".mp4")
     try:
         blocks = oav.get_handler("omni_av_caption")({"file_path": path})
@@ -257,7 +257,7 @@ def test_local_video_is_preprocessed_before_upload(monkeypatch):
         return ("## Storyline\n\nok", None)
 
     monkeypatch.setattr(_common, "_preprocess_video", fake_preprocess)
-    monkeypatch.setattr(_common, "call_omni", fake_call)
+    monkeypatch.setattr(_common, "call_omni_failover", fake_call)
     path = _dummy(".mp4")
     try:
         oav.get_handler("omni_av_caption")({"file_path": path, "max_pixels": 123456, "fps": 3})
@@ -284,7 +284,7 @@ def test_preprocess_failure_falls_back_to_original_file(monkeypatch):
         return ("## Storyline\n\nok", None)
 
     monkeypatch.setattr(_common, "_preprocess_video", fake_preprocess)
-    monkeypatch.setattr(_common, "call_omni", fake_call)
+    monkeypatch.setattr(_common, "call_omni_failover", fake_call)
     path = _dummy(".mp4")
     try:
         with open(path, "wb") as f:
@@ -307,7 +307,7 @@ def test_oversized_original_is_not_sent_when_preprocess_fails(monkeypatch):
 
     monkeypatch.setattr(_common, "_preprocess_video", fake_preprocess)
     monkeypatch.setattr(_common, "OMNI_MAX_UPLOAD_BYTES", 4)
-    monkeypatch.setattr(_common, "call_omni", lambda **kw: pytest.fail("must not call the endpoint"))
+    monkeypatch.setattr(_common, "call_omni_failover", lambda **kw: pytest.fail("must not call the endpoint"))
     path = _dummy(".mp4")
     try:
         with open(path, "wb") as f:
@@ -464,7 +464,7 @@ def test_over_cap_video_is_uploaded_when_oss_is_configured(monkeypatch, sample_m
     monkeypatch.setattr(_common.oss, "is_upload_configured", lambda: True)
     monkeypatch.setattr(_common.oss, "upload_and_sign", lambda path, **kw: "https://oss.example/signed.mp4")
     sent = {}
-    monkeypatch.setattr(_common, "call_omni", lambda **kw: (sent.setdefault("m", kw["messages"]), "ok")[1])
+    monkeypatch.setattr(_common, "call_omni_failover", lambda **kw: (sent.setdefault("m", kw["messages"]), "ok")[1])
 
     oav.get_handler("omni_av_caption")({"file_path": sample_media_av})
     parts = sent["m"][0]["content"]
@@ -476,7 +476,7 @@ def test_over_cap_video_is_split_into_frames_and_audio_without_oss(monkeypatch, 
     monkeypatch.setattr(_common, "_preprocess_video", _too_long)
     monkeypatch.setattr(_common.oss, "is_upload_configured", lambda: False)
     sent = {}
-    monkeypatch.setattr(_common, "call_omni", lambda **kw: (sent.setdefault("m", kw["messages"]), "ok")[1])
+    monkeypatch.setattr(_common, "call_omni_failover", lambda **kw: (sent.setdefault("m", kw["messages"]), "ok")[1])
 
     oav.get_handler("omni_av_caption")({"file_path": sample_media_av, "fps": 2})
     frames, audio, note, prompt = sent["m"][0]["content"]
@@ -494,7 +494,7 @@ def test_frames_fallback_is_used_when_the_oss_upload_fails(monkeypatch, sample_m
     monkeypatch.setattr(_common.oss, "is_upload_configured", lambda: True)
     monkeypatch.setattr(_common, "_transcode_and_upload", lambda *a, **kw: (_ for _ in ()).throw(OSError("no bucket")))
     sent = {}
-    monkeypatch.setattr(_common, "call_omni", lambda **kw: (sent.setdefault("m", kw["messages"]), "ok")[1])
+    monkeypatch.setattr(_common, "call_omni_failover", lambda **kw: (sent.setdefault("m", kw["messages"]), "ok")[1])
 
     oav.get_handler("omni_av_caption")({"file_path": sample_media_av})
     assert sent["m"][0]["content"][0]["type"] == "video"  # degraded to frames, not an error
@@ -507,7 +507,7 @@ def test_frames_are_thinned_until_they_fit(monkeypatch, sample_media_av):
     monkeypatch.setattr(_common.oss, "is_upload_configured", lambda: False)
     monkeypatch.setattr(_common, "_INLINE_B64_BUDGET", 60_000)
     sent = {}
-    monkeypatch.setattr(_common, "call_omni", lambda **kw: (sent.setdefault("m", kw["messages"]), "ok")[1])
+    monkeypatch.setattr(_common, "call_omni_failover", lambda **kw: (sent.setdefault("m", kw["messages"]), "ok")[1])
 
     oav.get_handler("omni_av_caption")({"file_path": sample_media_av, "fps": 10})
     frames = sent["m"][0]["content"][0]["video"]

@@ -45,7 +45,7 @@ from shared.api_omni import (
     OMNI_MAX_UPLOAD_BYTES,
     OMNI_MIN_FRAMES,
     b64_len,
-    call_omni,
+    call_omni_failover,
     call_omni_json,
     has_video_stream,
     jpeg_data_url,
@@ -595,8 +595,8 @@ def run_omni(
                 base_url=base_url, api_key=api_key, model=model, messages=messages, max_tokens=max_tokens
             )
         else:
-            data, _ = call_omni(
-                base_url=base_url, api_key=api_key, model=model, messages=messages, max_tokens=max_tokens
+            data, _ = call_omni_failover(
+                arguments=arguments, model=model, messages=messages, max_tokens=max_tokens
             )
         return data, None
     except Exception as e:  # noqa: BLE001 — surface any error as a tool message, not a crash
