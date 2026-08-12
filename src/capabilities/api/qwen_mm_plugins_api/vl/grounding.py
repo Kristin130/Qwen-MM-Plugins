@@ -150,11 +150,16 @@ def handle(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             messages=messages,
             max_tokens=2048,
         )
-        # Grounding is a perception task, no need to think. `enable_thinking` is a DashScope
-        # endpoint extension — SiliconFlow and other OpenAI-compatible endpoints reject unknown
-        # extra params, so only send it to the DashScope official base URL.
+        # Grounding is a perception task — turn off / minimize thinking so the model emits
+        # clean bbox JSON instead of a long chain-of-thought. Endpoints differ:
+        #   · DashScope official → `enable_thinking: false` (hybrid-thinking Qwen models)
+        #   · SiliconFlow → `enable_thinking` is rejected (400) even on *-Thinking models;
+        #     those are thinking-only, but honour the `thinking_budget` knob — 1 token ≈
+        #     effectively no thinking while keeping the request valid.
         if "dashscope.aliyuncs.com" in base_url:
             kwargs["extra_body"] = {"enable_thinking": False}
+        elif "siliconflow.cn" in base_url:
+            kwargs["extra_body"] = {"thinking_budget": 1}
         response = call_openai_chat_failover(**kwargs)
         raw_text = response.choices[0].message.content or ""
         detections = parse_grounding(raw_text, orig_w, orig_h)
