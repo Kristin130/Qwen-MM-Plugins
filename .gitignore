@@ -8,3 +8,5 @@ dist/
 *.egg
 .venv*/
 eval/
+# local build marker
+.ok
